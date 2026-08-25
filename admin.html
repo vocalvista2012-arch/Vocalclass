@@ -1,10 +1,350 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin | VocalClass</title><link rel="stylesheet" href="styles.css"></head><body><header class="topbar"><div class="logo">Vocal<span>Class</span> Admin</div><button id="logout">Logout</button></header><main class="wrap"><div id="message" class="message"></div><section class="grid"><div class="panel"><h2>Pending teachers</h2><div id="pending" class="list"></div></div><div class="panel"><h2>Approved teachers</h2><div id="teachers" class="list"></div></div><div class="panel"><h2>Students</h2><div id="students" class="list"></div></div></section><section class="card" style="margin-top:22px"><h2>First admin setup</h2><p class="muted">Create one user with Email/Password Authentication, then in the Firebase Console create <code>users/{uid}</code> with <code>role: "admin"</code>, <code>status: "active"</code>, <code>uid</code>, <code>email</code>, and <code>name</code>. After Firestore rules are published, only existing admins can grant admin/teacher roles.</p></section></main><script type="module">
-import { collection,query,where,onSnapshot,doc,updateDoc,serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { db, requireRole, logout, friendlyError, showMessage } from "./app-utils.js";
-document.getElementById('logout').onclick=logout;await requireRole(['admin'],{redirect:'index.html'});
-function userHtml(d,actions=''){const u=d.data();return `<div class="item"><strong>${u.name||u.email}</strong><p class="muted">${u.email} • ${u.role} • ${u.status}</p><div class="row">${actions}<button data-disable="${d.id}" class="danger">Disable</button></div></div>`}
-function bind(){document.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>updateDoc(doc(db,'users',b.dataset.approve),{role:'teacher',status:'active',updatedAt:serverTimestamp()}));document.querySelectorAll('[data-reject]').forEach(b=>b.onclick=()=>updateDoc(doc(db,'users',b.dataset.reject),{role:'student',status:'rejected',updatedAt:serverTimestamp()}));document.querySelectorAll('[data-disable]').forEach(b=>b.onclick=()=>updateDoc(doc(db,'users',b.dataset.disable),{status:'disabled',updatedAt:serverTimestamp()}).catch(e=>showMessage('message',friendlyError(e),'error')))}
-onSnapshot(query(collection(db,'users'),where('role','==','pendingTeacher')),s=>{pending.innerHTML=s.docs.map(d=>userHtml(d,`<button data-approve="${d.id}" class="green">Approve</button><button data-reject="${d.id}">Reject</button>`)).join('')||'<p class="muted">No pending teachers.</p>';bind()});
-onSnapshot(query(collection(db,'users'),where('role','==','teacher')),s=>{teachers.innerHTML=s.docs.map(d=>userHtml(d)).join('')||'<p class="muted">No teachers.</p>';bind()});
-onSnapshot(query(collection(db,'users'),where('role','==','student')),s=>{students.innerHTML=s.docs.map(d=>userHtml(d)).join('')||'<p class="muted">No students.</p>';bind()});
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard | VocalClass</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .admin-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .stat-card {
+      background: rgba(18, 25, 45, .94);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .stat-card strong {
+      display: block;
+      font-size: 32px;
+      margin-top: 8px;
+    }
+
+    .request-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      background: #0d1221;
+      border: 1px solid #293452;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .request-card + .request-card {
+      margin-top: 12px;
+    }
+
+    .request-name {
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .request-meta {
+      margin-top: 6px;
+      color: var(--muted);
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .empty-state {
+      padding: 28px;
+      border: 1px dashed #35405f;
+      border-radius: 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 760px) {
+      .admin-hero,
+      .request-card {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">Vocal<span>Class</span> Admin</div>
+    <div class="row">
+      <span id="adminName" class="badge">Checking admin access...</span>
+      <a class="btn secondary" href="index.html">Home</a>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="admin-hero">
+      <div>
+        <p class="badge">Role-protected dashboard</p>
+        <h1>Teacher approval requests</h1>
+        <p class="muted">
+          Every teacher signup appears here as a pending request. Approving a request changes
+          the user's Firestore profile to <strong>role: teacher</strong> and <strong>status: active</strong>.
+          Rejecting it changes the profile to <strong>role: student</strong> and <strong>status: rejected</strong>.
+        </p>
+      </div>
+      <button id="refreshBtn" class="green">Refresh requests</button>
+    </section>
+
+    <div id="message" class="message"></div>
+
+    <section class="stats" aria-label="Admin summary">
+      <div class="stat-card">
+        <span class="muted">Pending teacher requests</span>
+        <strong id="pendingCount">0</strong>
+      </div>
+      <div class="stat-card">
+        <span class="muted">Approved teachers</span>
+        <strong id="teacherCount">0</strong>
+      </div>
+      <div class="stat-card">
+        <span class="muted">Students</span>
+        <strong id="studentCount">0</strong>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;margin-bottom:16px">
+          <h2>Pending teacher requests</h2>
+          <span class="badge" id="pendingBadge">Live</span>
+        </div>
+        <div id="pendingRequests" class="list">
+          <div class="empty-state">Loading teacher requests...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Approved teachers</h2>
+        <div id="approvedTeachers" class="list" style="margin-top:16px">
+          <div class="empty-state">Loading teachers...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Students / rejected requests</h2>
+        <div id="students" class="list" style="margin-top:16px">
+          <div class="empty-state">Loading students...</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:22px">
+      <h2>First admin setup</h2>
+      <p class="muted">
+        For the first admin only, create an Auth user and manually create
+        <code>users/{uid}</code> in Firestore with <code>role: "admin"</code> and
+        <code>status: "active"</code>. After that, this dashboard is protected by Firestore role data;
+        it does not trust localStorage or hard-coded emails.
+      </p>
+    </section>
+  </main>
+
+  <script type="module">
+    import {
+      collection,
+      doc,
+      onSnapshot,
+      query,
+      serverTimestamp,
+      updateDoc,
+      where
+    } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+    import {
+      db,
+      friendlyError,
+      logout,
+      requireRole,
+      showMessage
+    } from "./app-utils.js";
+
+    const adminName = document.getElementById("adminName");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const pendingCount = document.getElementById("pendingCount");
+    const teacherCount = document.getElementById("teacherCount");
+    const studentCount = document.getElementById("studentCount");
+    const pendingRequests = document.getElementById("pendingRequests");
+    const approvedTeachers = document.getElementById("approvedTeachers");
+    const students = document.getElementById("students");
+
+    let pendingDocs = [];
+    let teacherDocs = [];
+    let studentDocs = [];
+
+    logoutBtn.addEventListener("click", logout);
+    refreshBtn.addEventListener("click", () => renderAll());
+
+    const { profile } = await requireRole(["admin"], {
+      redirect: "index.html",
+      messageId: "message"
+    });
+
+    adminName.textContent = `Admin: ${profile.name || profile.email || "Active"}`;
+
+    onSnapshot(
+      query(collection(db, "users"), where("role", "==", "pendingTeacher")),
+      (snapshot) => {
+        pendingDocs = snapshot.docs;
+        renderAll();
+      },
+      handleSnapshotError
+    );
+
+    onSnapshot(
+      query(collection(db, "users"), where("role", "==", "teacher")),
+      (snapshot) => {
+        teacherDocs = snapshot.docs;
+        renderAll();
+      },
+      handleSnapshotError
+    );
+
+    onSnapshot(
+      query(collection(db, "users"), where("role", "==", "student")),
+      (snapshot) => {
+        studentDocs = snapshot.docs;
+        renderAll();
+      },
+      handleSnapshotError
+    );
+
+    function renderAll() {
+      pendingCount.textContent = pendingDocs.length;
+      teacherCount.textContent = teacherDocs.length;
+      studentCount.textContent = studentDocs.length;
+      renderPendingRequests();
+      renderUserList(approvedTeachers, teacherDocs, "No approved teachers yet.");
+      renderUserList(students, studentDocs, "No students yet.");
+      bindActionButtons();
+    }
+
+    function renderPendingRequests() {
+      if (pendingDocs.length === 0) {
+        pendingRequests.innerHTML = '<div class="empty-state">No teacher requests are waiting for approval.</div>';
+        return;
+      }
+
+      pendingRequests.innerHTML = pendingDocs.map((request) => {
+        const user = request.data();
+        return `
+          <article class="request-card">
+            <div>
+              <div class="request-name">${escapeHtml(user.name || "Unnamed teacher")}</div>
+              <div class="request-meta">
+                ${escapeHtml(user.email || "No email")}<br>
+                Requested role: <strong>${escapeHtml(user.role || "pendingTeacher")}</strong> ·
+                Status: <strong>${escapeHtml(user.status || "pending")}</strong>
+              </div>
+            </div>
+            <div class="row">
+              <button class="green" data-approve="${request.id}">Approve</button>
+              <button class="danger" data-reject="${request.id}">Reject</button>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderUserList(container, docs, emptyText) {
+      if (docs.length === 0) {
+        container.innerHTML = `<div class="empty-state">${emptyText}</div>`;
+        return;
+      }
+
+      container.innerHTML = docs.map((docSnapshot) => {
+        const user = docSnapshot.data();
+        return `
+          <article class="item">
+            <strong>${escapeHtml(user.name || user.email || "Unnamed user")}</strong>
+            <p class="muted">
+              ${escapeHtml(user.email || "No email")}<br>
+              Role: ${escapeHtml(user.role || "unknown")} · Status: ${escapeHtml(user.status || "unknown")}
+            </p>
+            <button class="danger" data-disable="${docSnapshot.id}">Disable account</button>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function bindActionButtons() {
+      document.querySelectorAll("[data-approve]").forEach((button) => {
+        button.addEventListener("click", () => approveTeacher(button.dataset.approve));
+      });
+
+      document.querySelectorAll("[data-reject]").forEach((button) => {
+        button.addEventListener("click", () => rejectTeacher(button.dataset.reject));
+      });
+
+      document.querySelectorAll("[data-disable]").forEach((button) => {
+        button.addEventListener("click", () => disableAccount(button.dataset.disable));
+      });
+    }
+
+    async function approveTeacher(uid) {
+      await updateUser(uid, {
+        role: "teacher",
+        status: "active",
+        reviewedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, "Teacher approved.");
+    }
+
+    async function rejectTeacher(uid) {
+      await updateUser(uid, {
+        role: "student",
+        status: "rejected",
+        reviewedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, "Teacher request rejected.");
+    }
+
+    async function disableAccount(uid) {
+      await updateUser(uid, {
+        status: "disabled",
+        updatedAt: serverTimestamp()
+      }, "Account disabled.");
+    }
+
+    async function updateUser(uid, changes, successMessage) {
+      try {
+        await updateDoc(doc(db, "users", uid), changes);
+        showMessage("message", successMessage, "success");
+      } catch (error) {
+        console.error(error);
+        showMessage("message", friendlyError(error), "error");
+      }
+    }
+
+    function handleSnapshotError(error) {
+      console.error(error);
+      showMessage("message", friendlyError(error), "error");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
