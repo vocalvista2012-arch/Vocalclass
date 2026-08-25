@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)); }
+    function myRole() { return signedIn() && userDoc(request.auth.uid).data.role; }
+    function isAdmin() { return signedIn() && userDoc(request.auth.uid).data.role == 'admin' && userDoc(request.auth.uid).data.status == 'active'; }
+    function isTeacher(classroomId) { return signedIn() && get(/databases/$(database)/documents/classrooms/$(classroomId)).data.teacherId == request.auth.uid && userDoc(request.auth.uid).data.role == 'teacher' && userDoc(request.auth.uid).data.status == 'active'; }
+    function isMember(classroomId) { return signedIn() && exists(/databases/$(database)/documents/classrooms/$(classroomId)/members/$(request.auth.uid)); }
+    match /users/{uid} {
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.uid == uid && request.resource.data.role in ['student','pendingTeacher'] && request.resource.data.status in ['active','pending'];
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid && request.resource.data.role == resource.data.role && request.resource.data.status == resource.data.status && request.resource.data.uid == resource.data.uid);
+      allow delete: if isAdmin();
+    }
+    match /classrooms/{classroomId} {
+      allow create: if signedIn() && request.resource.data.teacherId == request.auth.uid && userDoc(request.auth.uid).data.role == 'teacher' && userDoc(request.auth.uid).data.status == 'active';
+      allow read: if isAdmin() || isMember(classroomId) || isTeacher(classroomId) || (signedIn() && resource.data.status == 'active');
+      allow update, delete: if isAdmin() || isTeacher(classroomId);
+      match /members/{uid} {
+        allow read: if isAdmin() || isMember(classroomId) || isTeacher(classroomId);
+        allow create: if signedIn() && ((request.auth.uid == uid && request.resource.data.role == 'student') || isTeacher(classroomId));
+        allow update: if isAdmin() || isTeacher(classroomId) || (signedIn() && request.auth.uid == uid && request.resource.data.role == resource.data.role);
+        allow delete: if isAdmin() || isTeacher(classroomId) || (signedIn() && request.auth.uid == uid);
+      }
+      match /slides/{slideId} {
+        allow read: if isAdmin() || isMember(classroomId) || isTeacher(classroomId);
+        allow create, update, delete: if isAdmin() || isTeacher(classroomId);
+      }
+      match /messages/{messageId} {
+        allow read: if isAdmin() || isMember(classroomId) || isTeacher(classroomId);
+        allow create: if signedIn() && (isMember(classroomId) || isTeacher(classroomId)) && request.resource.data.userId == request.auth.uid && request.resource.data.message is string && request.resource.data.message.size() <= 300;
+        allow update, delete: if isAdmin() || isTeacher(classroomId);
+      }
+      match /polls/{pollId} {
+        allow read: if isAdmin() || isMember(classroomId) || isTeacher(classroomId);
+        allow create, update, delete: if isAdmin() || isTeacher(classroomId);
+        match /responses/{uid} {
+          allow read: if isAdmin() || isTeacher(classroomId) || (signedIn() && request.auth.uid == uid);
+          allow create, update: if signedIn() && request.auth.uid == uid && isMember(classroomId);
+          allow delete: if isAdmin() || isTeacher(classroomId);
+        }
+      }
+      match /quizzes/{quizId} {
+        allow read: if isAdmin() || isMember(classroomId) || isTeacher(classroomId);
+        allow create, update, delete: if isAdmin() || isTeacher(classroomId);
+        match /responses/{uid} {
+          allow read: if isAdmin() || isTeacher(classroomId) || (signedIn() && request.auth.uid == uid);
+          allow create, update: if signedIn() && request.auth.uid == uid && isMember(classroomId);
+          allow delete: if isAdmin() || isTeacher(classroomId);
+        }
+      }
+    }
+  }
+}

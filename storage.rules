@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function userDoc(uid) { return firestore.get(/databases/(default)/documents/users/$(uid)); }
+    function isActiveTeacher() { return signedIn() && userDoc(request.auth.uid).data.role == 'teacher' && userDoc(request.auth.uid).data.status == 'active'; }
+    match /classrooms/{classroomId}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isActiveTeacher()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+  }
+}
