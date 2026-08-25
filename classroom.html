@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>VocalClass - Live Classroom</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      height: 100vh;
+      overflow: hidden;
+      background: #080d1c;
+      color: white;
+    }
+
+    /* TOP BAR */
+
+    .topbar {
+      height: 60px;
+      background: #11182b;
+      border-bottom: 1px solid #293452;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+    }
+
+    .logo {
+      font-size: 21px;
+      font-weight: bold;
+    }
+
+    .logo span {
+      color: #7067ff;
+    }
+
+    .class-title {
+      color: #aeb6cc;
+      font-size: 14px;
+    }
+
+    .live {
+      color: #51e39a;
+      font-weight: bold;
+    }
+
+    /* MAIN */
+
+    .workspace {
+      height: calc(100vh - 60px);
+      display: grid;
+      grid-template-columns: 1fr 330px;
+    }
+
+    .main-area {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* VIDEO */
+
+    .video-area {
+      height: 210px;
+      background: #050812;
+      border-bottom: 1px solid #293452;
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .video-box {
+      width: 240px;
+      background: #151c32;
+      border-radius: 12px;
+      border: 1px solid #293452;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .video-avatar {
+      font-size: 45px;
+    }
+
+    .video-name {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    /* WHITEBOARD */
+
+    .board-area {
+      flex: 1;
+      background: #dfe3e8;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #board {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: white;
+      cursor: crosshair;
+    }
+
+    /* TOOLBAR */
+
+    .toolbar {
+      min-height: 64px;
+      background: #11182b;
+      border-top: 1px solid #293452;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px;
+      overflow-x: auto;
+    }
+
+    .tool-btn {
+      min-width: 42px;
+      height: 42px;
+      border: 1px solid #35405f;
+      border-radius: 8px;
+      background: #151c32;
+      color: white;
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .tool-btn:hover {
+      border-color: #7067ff;
+      background: #202947;
+    }
+
+    .tool-btn.active {
+      background: #7067ff;
+      border-color: #7067ff;
+    }
+
+    .toolbar input[type="color"] {
+      width: 42px;
+      height: 42px;
+      padding: 3px;
+      border: 1px solid #35405f;
+      background: #151c32;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .thickness {
+      width: 80px;
+    }
+
+    .toolbar-separator {
+      width: 1px;
+      height: 35px;
+      background: #35405f;
+      margin: 0 5px;
+    }
+
+    /* RIGHT PANEL */
+
+    .side-panel {
+      background: #11182b;
+      border-left: 1px solid #293452;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid #293452;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 15px 5px;
+      background: transparent;
+      border: none;
+      color: #8e98ae;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .tab.active {
+      color: white;
+      border-bottom: 2px solid #7067ff;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+    }
+
+    .panel-section {
+      display: none;
+    }
+
+    .panel-section.active {
+      display: block;
+    }
+
+    /* STUDENTS */
+
+    .student {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #293452;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      background: #7067ff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .student-info {
+      flex: 1;
+    }
+
+    .student-info small {
+      color: #51e39a;
+    }
+
+    /* CHAT */
+
+    .chat-message {
+      padding: 10px;
+      background: #151c32;
+      border-radius: 9px;
+      margin-bottom: 10px;
+    }
+
+    .chat-message strong {
+      color: #8d87ff;
+    }
+
+    .chat-message p {
+      color: #c1c8d8;
+      margin-top: 4px;
+      font-size: 14px;
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 6px;
+      margin-top: 15px;
+    }
+
+    .chat-input input {
+      min-width: 0;
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #35405f;
+      background: #0b1122;
+      color: white;
+    }
+
+    .chat-input button {
+      border: none;
+      background: #7067ff;
+      color: white;
+      border-radius: 8px;
+      padding: 0 14px;
+      cursor: pointer;
+    }
+
+    /* LEADERBOARD */
+
+    .rank {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      margin-bottom: 8px;
+      background: #151c32;
+      border-radius: 9px;
+    }
+
+    .rank-name {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .xp {
+      color: #ffd45c;
+      font-weight: bold;
+    }
+
+    /* SLIDES */
+
+    .slide-controls {
+      position: absolute;
+      bottom: 75px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      background: rgba(10, 15, 28, 0.9);
+      padding: 8px;
+      border-radius: 10px;
+    }
+
+    .slide-controls button {
+      border: none;
+      background: #293452;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+
+    /* RESPONSIVE */
+
+    @media (max-width: 900px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .side-panel {
+        display: none;
+      }
+
+      .video-area {
+        height: 150px;
+      }
+
+      .video-box {
+        width: 170px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- TOP BAR -->
+
+  <header class="topbar">
+
+    <div class="logo">
+      Vocal<span>Class</span>
+    </div>
+
+    <div class="class-title">
+      Mathematics • Class 8
+      &nbsp; | &nbsp;
+      <span class="live">● LIVE</span>
+    </div>
+
+    <div>
+      👨‍🏫 Teacher
+    </div>
+
+  </header>
+
+
+  <div class="workspace">
+
+    <main class="main-area">
+
+      <!-- VIDEO AREA -->
+
+      <section class="video-area">
+
+        <div class="video-box">
+
+          <div class="video-avatar">
+            👨‍🏫
+          </div>
+
+          <div class="video-name">
+            Teacher
+          </div>
+
+        </div>
+
+        <div class="video-box">
+
+          <div class="video-avatar">
+            👨‍🎓
+          </div>
+
+          <div class="video-name">
+            Student
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- WHITEBOARD -->
+
+      <section class="board-area">
+
+        <canvas id="board"></canvas>
+
+        <!-- SLIDE CONTROLS -->
+
+        <div class="slide-controls">
+
+          <button onclick="previousSlide()">
+            ◀
+          </button>
+
+          <span id="slideNumber">
+            Slide 1
+          </span>
+
+          <button onclick="nextSlide()">
+            ▶
+          </button>
+
+          <button onclick="newSlide()">
+            ＋
+          </button>
+
+          <button onclick="deleteSlide()">
+            🗑️
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- TOOLBAR -->
+
+      <div class="toolbar">
+
+        <button
+          class="tool-btn active"
+          onclick="setTool('pen', this)"
+          title="Pen">
+          ✏️
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="setTool('highlighter', this)"
+          title="Highlighter">
+          🖍️
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="setTool('eraser', this)"
+          title="Eraser">
+          🧹
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="setTool('pointer', this)"
+          title="Pointer">
+          🔦
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="setTool('select', this)"
+          title="Select">
+          🖱️
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="setTool('text', this)"
+          title="Text">
+          T
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="setTool('rectangle', this)"
+          title="Rectangle">
+          ▭
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="setTool('circle', this)"
+          title="Circle">
+          ○
+        </button>
+
+        <div class="toolbar-separator"></div>
+
+        <input
+          type="color"
+          id="colorPicker"
+          value="#111111"
+          title="Pen Color">
+
+        <input
+          class="thickness"
+          type="range"
+          id="thickness"
+          min="1"
+          max="30"
+          value="4"
+          title="Pen Thickness">
+
+        <div class="toolbar-separator"></div>
+
+        <button
+          class="tool-btn"
+          onclick="undo()"
+          title="Undo">
+          ↩️
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="redo()"
+          title="Redo">
+          ↪️
+        </button>
+
+        <div class="toolbar-separator"></div>
+
+        <button
+          class="tool-btn"
+          onclick="insertPDF()"
+          title="Insert PDF">
+          📄
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="createPoll()"
+          title="Poll">
+          📊
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="createQuiz()"
+          title="Quiz">
+          ❓
+        </button>
+
+        <button
+          class="tool-btn"
+          onclick="shareScreen()"
+          title="Screen Share">
+          🖥️
+        </button>
+
+      </div>
+
+    </main>
+
+
+    <!-- SIDE PANEL -->
+
+    <aside class="side-panel">
+
+      <div class="panel-tabs">
+
+        <button
+          class="tab active"
+          onclick="showPanel('students', this)">
+          👨‍🎓
+        </button>
+
+        <button
+          class="tab"
+          onclick="showPanel('chat', this)">
+          💬
+        </button>
+
+        <button
+          class="tab"
+          onclick="showPanel('leaderboard', this)">
+          🏆
+        </button>
+
+      </div>
+
+
+      <div class="panel-content">
+
+        <!-- STUDENTS -->
+
+        <section
+          id="students"
+          class="panel-section active">
+
+          <h2>Students</h2>
+
+          <div class="student">
+
+            <div class="avatar">A</div>
+
+            <div class="student-info">
+              <strong>Aarav</strong>
+              <br>
+              <small>● Online</small>
+            </div>
+
+            <span>980 XP</span>
+
+          </div>
+
+          <div class="student">
+
+            <div class="avatar">P</div>
+
+            <div class="student-info">
+              <strong>Priya</strong>
+              <br>
+              <small>● Online</small>
+            </div>
+
+            <span>920 XP</span>
+
+          </div>
+
+          <div class="student">
+
+            <div class="avatar">R</div>
+
+            <div class="student-info">
+              <strong>Rahul</strong>
+              <br>
+              <small>● Online</small>
+            </div>
+
+            <span>870 XP</span>
+
+          </div>
+
+        </section>
+
+
+        <!-- CHAT -->
+
+        <section
+          id="chat"
+          class="panel-section">
+
+          <h2>Class Chat</h2>
+
+          <br>
+
+          <div id="chatMessages">
+
+            <div class="chat-message">
+
+              <strong>Aarav</strong>
+
+              <p>
+                Sir, can you explain this question?
+              </p>
+
+            </div>
+
+            <div class="chat-message">
+
+              <strong>Priya</strong>
+
+              <p>
+                I understood it!
+              </p>
+
+            </div>
+
+          </div>
+
+          <div class="chat-input">
+
+            <input
+              id="chatInput"
+              placeholder="Message...">
+
+            <button onclick="sendMessage()">
+              ➤
+            </button>
+
+          </div>
+
+        </section>
+
+
+        <!-- LEADERBOARD -->
+
+        <section
+          id="leaderboard"
+          class="panel-section">
+
+          <h2>🏆 Leaderboard</h2>
+
+          <br>
+
+          <div class="rank">
+
+            <div class="rank-name">
+              🥇
+              <strong>Aarav</strong>
+            </div>
+
+            <span class="xp">
+              980 XP
+            </span>
+
+          </div>
+
+          <div class="rank">
+
+            <div class="rank-name">
+              🥈
+              <strong>Priya</strong>
+            </div>
+
+            <span class="xp">
+              920 XP
+            </span>
+
+          </div>
+
+          <div class="rank">
+
+            <div class="rank-name">
+              🥉
+              <strong>Rahul</strong>
+            </div>
+
+            <span class="xp">
+              870 XP
+            </span>
+
+          </div>
+
+        </section>
+
+      </div>
+
+    </aside>
+
+  </div>
+
+
+  <script>
+
+    /* =========================
+       WHITEBOARD
+    ========================= */
+
+    const canvas =
+      document.getElementById("board");
+
+    const ctx =
+      canvas.getContext("2d");
+
+    let drawing = false;
+
+    let tool = "pen";
+
+    let color = "#111111";
+
+    let thickness = 4;
+
+    let history = [];
+
+    let redoHistory = [];
+
+
+    function resizeCanvas() {
+
+      const oldImage =
+        canvas.toDataURL();
+
+      canvas.width =
+        canvas.clientWidth;
+
+      canvas.height =
+        canvas.clientHeight;
+
+      const image =
+        new Image();
+
+      image.onload = function() {
+        ctx.drawImage(image, 0, 0);
+      };
+
+      image.src = oldImage;
+    }
+
+
+    window.addEventListener(
+      "resize",
+      resizeCanvas
+    );
+
+    resizeCanvas();
+
+
+    canvas.addEventListener(
+      "pointerdown",
+      startDrawing
+    );
+
+    canvas.addEventListener(
+      "pointermove",
+      draw
+    );
+
+    canvas.addEventListener(
+      "pointerup",
+      stopDrawing
+    );
+
+    canvas.addEventListener(
+      "pointerleave",
+      stopDrawing
+    );
+
+
+    function startDrawing(event) {
+
+      if (
+        tool !== "pen" &&
+        tool !== "highlighter" &&
+        tool !== "eraser"
+      ) {
+        return;
+      }
+
+      drawing = true;
+
+      saveState();
+
+      ctx.beginPath();
+
+      ctx.moveTo(
+        event.offsetX,
+        event.offsetY
+      );
+    }
+
+
+    function draw(event) {
+
+      if (!drawing) return;
+
+      ctx.lineTo(
+        event.offsetX,
+        event.offsetY
+      );
+
+      ctx.lineWidth = thickness;
+
+      ctx.lineCap = "round";
+
+      if (tool === "eraser") {
+
+        ctx.globalCompositeOperation =
+          "destination-out";
+
+      } else {
+
+        ctx.globalCompositeOperation =
+          "source-over";
+
+        ctx.strokeStyle = color;
+
+        if (tool === "highlighter") {
+
+          ctx.globalAlpha = 0.25;
+
+        } else {
+
+          ctx.globalAlpha = 1;
+
+        }
+      }
+
+      ctx.stroke();
+
+      ctx.beginPath();
+
+      ctx.moveTo(
+        event.offsetX,
+        event.offsetY
+      );
+
+    }
+
+
+    function stopDrawing() {
+
+      drawing = false;
+
+      ctx.globalAlpha = 1;
+
+      ctx.globalCompositeOperation =
+        "source-over";
+
+      ctx.closePath();
+
+    }
+
+
+    function setTool(newTool, button) {
+
+      tool = newTool;
+
+      document
+        .querySelectorAll(".tool-btn")
+        .forEach(btn =>
+          btn.classList.remove("active")
+        );
+
+      button.classList.add("active");
+
+    }
+
+
+    document
+      .getElementById("colorPicker")
+      .addEventListener(
+        "input",
+        function(event) {
+
+          color = event.target.value;
+
+        }
+      );
+
+
+    document
+      .getElementById("thickness")
+      .addEventListener(
+        "input",
+        function(event) {
+
+          thickness =
+            Number(event.target.value);
+
+        }
+      );
+
+
+    /* =========================
+       UNDO / REDO
+    ========================= */
+
+    function saveState() {
+
+      history.push(
+        canvas.toDataURL()
+      );
+
+      if (history.length > 30) {
+        history.shift();
+      }
+
+      redoHistory = [];
+
+    }
+
+
+    function restoreImage(data) {
+
+      const image = new Image();
+
+      image.onload = function() {
+
+        ctx.clearRect(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+
+        ctx.drawImage(
+          image,
+          0,
+          0
+        );
+
+      };
+
+      image.src = data;
+
+    }
+
+
+    function undo() {
+
+      if (history.length === 0) return;
+
+      redoHistory.push(
+        canvas.toDataURL()
+      );
+
+      const previous =
+        history.pop();
+
+      restoreImage(previous);
+
+    }
+
+
+    function redo() {
+
+      if (redoHistory.length === 0) return;
+
+      history.push(
+        canvas.toDataURL()
+      );
+
+      const next =
+        redoHistory.pop();
+
+      restoreImage(next);
+
+    }
+
+
+    /* =========================
+       SLIDES
+    ========================= */
+
+    let currentSlide = 1;
+
+    let totalSlides = 1;
+
+
+    function updateSlide() {
+
+      document
+        .getElementById("slideNumber")
+        .textContent =
+        "Slide " + currentSlide;
+
+    }
+
+
+    function newSlide() {
+
+      totalSlides++;
+
+      currentSlide =
+        totalSlides;
+
+      ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      updateSlide();
+
+    }
+
+
+    function deleteSlide() {
+
+      if (totalSlides <= 1) {
+
+        alert(
+          "You must keep at least one slide."
+        );
+
+        return;
+
+      }
+
+      totalSlides--;
+
+      currentSlide =
+        Math.min(
+          currentSlide,
+          totalSlides
+        );
+
+      ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      updateSlide();
+
+    }
+
+
+    function previousSlide() {
+
+      if (currentSlide > 1) {
+
+        currentSlide--;
+
+        updateSlide();
+
+      }
+
+    }
+
+
+    function nextSlide() {
+
+      if (currentSlide < totalSlides) {
+
+        currentSlide++;
+
+        updateSlide();
+
+      }
+
+    }
+
+
+    /* =========================
+       FEATURES
+    ========================= */
+
+    function insertPDF() {
+
+      alert(
+        "📄 PDF upload will be connected next."
+      );
+
+    }
+
+
+    function createPoll() {
+
+      alert(
+        "📊 Poll creator will be connected next."
+      );
+
+    }
+
+
+    function createQuiz() {
+
+      alert(
+        "❓ Quiz creator will be connected next."
+      );
+
+    }
+
+
+    async function shareScreen() {
+
+      try {
+
+        const stream =
+          await navigator.mediaDevices
+            .getDisplayMedia({
+              video: true
+            });
+
+        alert(
+          "🖥️ Screen sharing started!"
+        );
+
+        stream
+          .getVideoTracks()[0]
+          .addEventListener(
+            "ended",
+            function() {
+
+              alert(
+                "Screen sharing stopped."
+              );
+
+            }
+          );
+
+      } catch (error) {
+
+        console.log(error);
+
+      }
+
+    }
+
+
+    /* =========================
+       SIDE PANEL
+    ========================= */
+
+    function showPanel(
+      panel,
+      button
+    ) {
+
+      document
+        .querySelectorAll(".panel-section")
+        .forEach(section =>
+          section.classList.remove("active")
+        );
+
+      document
+        .querySelectorAll(".tab")
+        .forEach(tab =>
+          tab.classList.remove("active")
+        );
+
+      document
+        .getElementById(panel)
+        .classList.add("active");
+
+      button.classList.add("active");
+
+    }
+
+
+    /* =========================
+       CHAT
+    ========================= */
+
+    function sendMessage() {
+
+      const input =
+        document.getElementById(
+          "chatInput"
+        );
+
+      const text =
+        input.value.trim();
+
+      if (!text) return;
+
+      const message =
+        document.createElement("div");
+
+      message.className =
+        "chat-message";
+
+      message.innerHTML =
+        "<strong>Teacher</strong>" +
+        "<p>" +
+        text.replace(
+          /</g,
+          "&lt;"
+        ) +
+        "</p>";
+
+      document
+        .getElementById("chatMessages")
+        .appendChild(message);
+
+      input.value = "";
+
+    }
+
+
+    document
+      .getElementById("chatInput")
+      .addEventListener(
+        "keydown",
+        function(event) {
+
+          if (event.key === "Enter") {
+            sendMessage();
+          }
+
+        }
+      );
+
+  </script>
+
+</body>
+</html>
