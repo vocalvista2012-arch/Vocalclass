@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>VocalClass - Live Classroom</title>
+  <title>VocalClass - Classroom</title>
 
   <style>
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -27,9 +28,11 @@
       height: 60px;
       background: #11182b;
       border-bottom: 1px solid #293452;
+
       display: flex;
       align-items: center;
       justify-content: space-between;
+
       padding: 0 18px;
     }
 
@@ -52,39 +55,62 @@
       font-weight: bold;
     }
 
-    /* MAIN */
+    .role {
+      background: #202947;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+
+    /* WORKSPACE */
 
     .workspace {
       height: calc(100vh - 60px);
+
       display: grid;
       grid-template-columns: 1fr 330px;
     }
 
     .main-area {
       min-width: 0;
+
       display: flex;
       flex-direction: column;
     }
 
+
     /* VIDEO */
 
     .video-area {
-      height: 210px;
+      height: 180px;
+
       background: #050812;
+
       border-bottom: 1px solid #293452;
+
       display: flex;
       gap: 12px;
+
       padding: 12px;
+
+      overflow-x: auto;
     }
 
     .video-box {
-      width: 240px;
+      width: 220px;
+      min-width: 220px;
+
       background: #151c32;
+
       border-radius: 12px;
+
       border: 1px solid #293452;
+
       display: flex;
       align-items: center;
       justify-content: center;
+
       position: relative;
     }
 
@@ -94,72 +120,141 @@
 
     .video-name {
       position: absolute;
+
       bottom: 8px;
       left: 8px;
-      background: rgba(0, 0, 0, 0.65);
+
+      background: rgba(0,0,0,.65);
+
       padding: 5px 8px;
+
       border-radius: 6px;
+
       font-size: 12px;
     }
 
-    /* WHITEBOARD */
+
+    /* BOARD */
 
     .board-area {
       flex: 1;
-      background: #dfe3e8;
+
+      background: white;
+
       position: relative;
+
       overflow: hidden;
     }
 
     #board {
       width: 100%;
       height: 100%;
+
       display: block;
+
       background: white;
-      cursor: crosshair;
     }
 
-    /* TOOLBAR */
 
-    .toolbar {
-      min-height: 64px;
-      background: #11182b;
-      border-top: 1px solid #293452;
+    /* SLIDES */
+
+    .slide-controls {
+      position: absolute;
+
+      bottom: 15px;
+      left: 50%;
+
+      transform: translateX(-50%);
+
       display: flex;
+
+      gap: 7px;
+
       align-items: center;
-      gap: 6px;
+
+      background: rgba(10,15,28,.9);
+
       padding: 8px;
+
+      border-radius: 10px;
+    }
+
+    .slide-controls button {
+      border: none;
+
+      background: #293452;
+
+      color: white;
+
+      padding: 8px 11px;
+
+      border-radius: 7px;
+
+      cursor: pointer;
+    }
+
+    .slide-controls span {
+      font-size: 13px;
+
+      padding: 0 5px;
+    }
+
+
+    /* TEACHER TOOLBAR */
+
+    .teacher-toolbar {
+      min-height: 64px;
+
+      background: #11182b;
+
+      border-top: 1px solid #293452;
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 6px;
+
+      padding: 8px;
+
       overflow-x: auto;
     }
 
     .tool-btn {
       min-width: 42px;
       height: 42px;
+
       border: 1px solid #35405f;
+
       border-radius: 8px;
+
       background: #151c32;
+
       color: white;
+
       cursor: pointer;
+
       font-size: 18px;
     }
 
     .tool-btn:hover {
       border-color: #7067ff;
-      background: #202947;
     }
 
     .tool-btn.active {
       background: #7067ff;
-      border-color: #7067ff;
     }
 
-    .toolbar input[type="color"] {
+    .color {
       width: 42px;
       height: 42px;
-      padding: 3px;
-      border: 1px solid #35405f;
-      background: #151c32;
+
       border-radius: 8px;
+
+      border: 1px solid #35405f;
+
+      padding: 3px;
+
       cursor: pointer;
     }
 
@@ -167,46 +262,106 @@
       width: 80px;
     }
 
-    .toolbar-separator {
+    .separator {
       width: 1px;
       height: 35px;
+
       background: #35405f;
+
       margin: 0 5px;
     }
 
-    /* RIGHT PANEL */
+
+    /* STUDENT TOOLBAR */
+
+    .student-toolbar {
+      min-height: 64px;
+
+      background: #11182b;
+
+      border-top: 1px solid #293452;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 10px;
+
+      padding: 8px;
+    }
+
+    .student-action {
+      border: none;
+
+      background: #151c32;
+
+      color: white;
+
+      border: 1px solid #35405f;
+
+      padding: 12px 18px;
+
+      border-radius: 9px;
+
+      cursor: pointer;
+
+      font-weight: bold;
+    }
+
+    .student-action:hover {
+      border-color: #7067ff;
+    }
+
+
+    /* SIDE PANEL */
 
     .side-panel {
       background: #11182b;
+
       border-left: 1px solid #293452;
+
       display: flex;
+
       flex-direction: column;
+
       min-width: 0;
     }
 
     .panel-tabs {
       display: flex;
+
       border-bottom: 1px solid #293452;
     }
 
     .tab {
       flex: 1;
+
       padding: 15px 5px;
+
       background: transparent;
+
       border: none;
+
       color: #8e98ae;
+
       cursor: pointer;
+
       font-weight: bold;
     }
 
     .tab.active {
       color: white;
+
       border-bottom: 2px solid #7067ff;
     }
 
     .panel-content {
       flex: 1;
+
       overflow-y: auto;
+
       padding: 15px;
     }
 
@@ -218,24 +373,34 @@
       display: block;
     }
 
+
     /* STUDENTS */
 
     .student {
       display: flex;
+
       align-items: center;
+
       gap: 10px;
+
       padding: 12px 0;
+
       border-bottom: 1px solid #293452;
     }
 
     .avatar {
       width: 36px;
       height: 36px;
+
       background: #7067ff;
+
       border-radius: 50%;
+
       display: flex;
+
       align-items: center;
       justify-content: center;
+
       font-weight: bold;
     }
 
@@ -243,16 +408,22 @@
       flex: 1;
     }
 
-    .student-info small {
+    .online {
       color: #51e39a;
+
+      font-size: 12px;
     }
+
 
     /* CHAT */
 
     .chat-message {
       padding: 10px;
+
       background: #151c32;
+
       border-radius: 9px;
+
       margin-bottom: 10px;
     }
 
@@ -262,84 +433,80 @@
 
     .chat-message p {
       color: #c1c8d8;
+
       margin-top: 4px;
+
       font-size: 14px;
     }
 
     .chat-input {
       display: flex;
+
       gap: 6px;
+
       margin-top: 15px;
     }
 
     .chat-input input {
-      min-width: 0;
       flex: 1;
+
+      min-width: 0;
+
       padding: 10px;
+
       border-radius: 8px;
+
       border: 1px solid #35405f;
+
       background: #0b1122;
+
       color: white;
     }
 
     .chat-input button {
       border: none;
+
       background: #7067ff;
+
       color: white;
+
       border-radius: 8px;
+
       padding: 0 14px;
+
       cursor: pointer;
     }
+
 
     /* LEADERBOARD */
 
     .rank {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px;
-      margin-bottom: 8px;
-      background: #151c32;
-      border-radius: 9px;
-    }
 
-    .rank-name {
-      display: flex;
-      gap: 10px;
       align-items: center;
+
+      justify-content: space-between;
+
+      padding: 12px;
+
+      margin-bottom: 8px;
+
+      background: #151c32;
+
+      border-radius: 9px;
     }
 
     .xp {
       color: #ffd45c;
+
       font-weight: bold;
     }
 
-    /* SLIDES */
 
-    .slide-controls {
-      position: absolute;
-      bottom: 75px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 8px;
-      background: rgba(10, 15, 28, 0.9);
-      padding: 8px;
-      border-radius: 10px;
-    }
+    /* MOBILE */
 
-    .slide-controls button {
-      border: none;
-      background: #293452;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 7px;
-      cursor: pointer;
-    }
+    @media(max-width:900px) {
 
-    /* RESPONSIVE */
-
-    @media (max-width: 900px) {
       .workspace {
         grid-template-columns: 1fr;
       }
@@ -348,18 +515,14 @@
         display: none;
       }
 
-      .video-area {
-        height: 150px;
-      }
-
-      .video-box {
-        width: 170px;
-      }
     }
+
   </style>
+
 </head>
 
 <body>
+
 
   <!-- TOP BAR -->
 
@@ -370,13 +533,20 @@
     </div>
 
     <div class="class-title">
+
       Mathematics • Class 8
+
       &nbsp; | &nbsp;
-      <span class="live">● LIVE</span>
+
+      <span class="live">
+        ● LIVE
+      </span>
+
     </div>
 
-    <div>
-      👨‍🏫 Teacher
+    <div
+      id="roleDisplay"
+      class="role">
     </div>
 
   </header>
@@ -384,9 +554,13 @@
 
   <div class="workspace">
 
+
+    <!-- MAIN -->
+
     <main class="main-area">
 
-      <!-- VIDEO AREA -->
+
+      <!-- VIDEO -->
 
       <section class="video-area">
 
@@ -401,6 +575,7 @@
           </div>
 
         </div>
+
 
         <div class="video-box">
 
@@ -423,7 +598,8 @@
 
         <canvas id="board"></canvas>
 
-        <!-- SLIDE CONTROLS -->
+
+        <!-- SLIDE CONTROL -->
 
         <div class="slide-controls">
 
@@ -439,86 +615,98 @@
             ▶
           </button>
 
-          <button onclick="newSlide()">
-            ＋
-          </button>
 
-          <button onclick="deleteSlide()">
-            🗑️
-          </button>
+          <!-- Only teacher -->
+
+          <span id="teacherSlideButtons">
+
+            <button onclick="newSlide()">
+              ＋
+            </button>
+
+            <button onclick="deleteSlide()">
+              🗑️
+            </button>
+
+          </span>
 
         </div>
 
       </section>
 
 
-      <!-- TOOLBAR -->
+      <!-- TEACHER TOOLBAR -->
 
-      <div class="toolbar">
+      <div
+        id="teacherToolbar"
+        class="teacher-toolbar">
+
 
         <button
           class="tool-btn active"
-          onclick="setTool('pen', this)"
-          title="Pen">
+          onclick="setTool('pen',this)">
           ✏️
         </button>
 
+
         <button
           class="tool-btn"
-          onclick="setTool('highlighter', this)"
-          title="Highlighter">
+          onclick="setTool('highlighter',this)">
           🖍️
         </button>
 
+
         <button
           class="tool-btn"
-          onclick="setTool('eraser', this)"
-          title="Eraser">
+          onclick="setTool('eraser',this)">
           🧹
         </button>
 
+
         <button
           class="tool-btn"
-          onclick="setTool('pointer', this)"
-          title="Pointer">
+          onclick="setTool('pointer',this)">
           🔦
         </button>
 
+
         <button
           class="tool-btn"
-          onclick="setTool('select', this)"
-          title="Select">
+          onclick="setTool('select',this)">
           🖱️
         </button>
 
+
         <button
           class="tool-btn"
-          onclick="setTool('text', this)"
-          title="Text">
+          onclick="setTool('text',this)">
           T
         </button>
 
+
         <button
           class="tool-btn"
-          onclick="setTool('rectangle', this)"
-          title="Rectangle">
+          onclick="setTool('rectangle',this)">
           ▭
         </button>
 
+
         <button
           class="tool-btn"
-          onclick="setTool('circle', this)"
-          title="Circle">
+          onclick="setTool('circle',this)">
           ○
         </button>
 
-        <div class="toolbar-separator"></div>
+
+        <div class="separator"></div>
+
 
         <input
+          class="color"
           type="color"
           id="colorPicker"
-          value="#111111"
-          title="Pen Color">
+          value="#111111">
+
 
         <input
           class="thickness"
@@ -526,56 +714,86 @@
           id="thickness"
           min="1"
           max="30"
-          value="4"
-          title="Pen Thickness">
+          value="4">
 
-        <div class="toolbar-separator"></div>
+
+        <div class="separator"></div>
+
 
         <button
           class="tool-btn"
-          onclick="undo()"
-          title="Undo">
+          onclick="undo()">
           ↩️
         </button>
 
+
         <button
           class="tool-btn"
-          onclick="redo()"
-          title="Redo">
+          onclick="redo()">
           ↪️
         </button>
 
-        <div class="toolbar-separator"></div>
+
+        <div class="separator"></div>
+
 
         <button
           class="tool-btn"
-          onclick="insertPDF()"
-          title="Insert PDF">
+          onclick="insertPDF()">
           📄
         </button>
 
+
         <button
           class="tool-btn"
-          onclick="createPoll()"
-          title="Poll">
+          onclick="createPoll()">
           📊
         </button>
 
-        <button
-          class="tool-btn"
-          onclick="createQuiz()"
-          title="Quiz">
-          ❓
-        </button>
 
         <button
           class="tool-btn"
-          onclick="shareScreen()"
-          title="Screen Share">
+          onclick="createQuiz()">
+          ❓
+        </button>
+
+
+        <button
+          class="tool-btn"
+          onclick="shareScreen()">
           🖥️
         </button>
 
       </div>
+
+
+      <!-- STUDENT TOOLBAR -->
+
+      <div
+        id="studentToolbar"
+        class="student-toolbar"
+        style="display:none;">
+
+        <button
+          class="student-action"
+          onclick="raiseHand()">
+          🙋 Raise Hand
+        </button>
+
+        <button
+          class="student-action"
+          onclick="askDoubt()">
+          ❓ Ask Doubt
+        </button>
+
+        <button
+          class="student-action"
+          onclick="studentPoll()">
+          📊 Poll
+        </button>
+
+      </div>
+
 
     </main>
 
@@ -584,23 +802,28 @@
 
     <aside class="side-panel">
 
+
       <div class="panel-tabs">
 
+
         <button
+          id="studentsTab"
           class="tab active"
-          onclick="showPanel('students', this)">
+          onclick="showPanel('students',this)">
           👨‍🎓
         </button>
 
-        <button
-          class="tab"
-          onclick="showPanel('chat', this)">
-          💬
-        </button>
 
         <button
           class="tab"
-          onclick="showPanel('leaderboard', this)">
+          onclick="showPanel('chat',this)">
+          💬
+        </button>
+
+
+        <button
+          class="tab"
+          onclick="showPanel('leaderboard',this)">
           🏆
         </button>
 
@@ -608,6 +831,7 @@
 
 
       <div class="panel-content">
+
 
         <!-- STUDENTS -->
 
@@ -617,45 +841,80 @@
 
           <h2>Students</h2>
 
+          <br>
+
+
           <div class="student">
 
-            <div class="avatar">A</div>
-
-            <div class="student-info">
-              <strong>Aarav</strong>
-              <br>
-              <small>● Online</small>
+            <div class="avatar">
+              A
             </div>
 
-            <span>980 XP</span>
+            <div class="student-info">
+
+              <strong>
+                Aarav
+              </strong>
+
+              <div class="online">
+                ● Online
+              </div>
+
+            </div>
+
+            <span>
+              980 XP
+            </span>
 
           </div>
 
+
           <div class="student">
 
-            <div class="avatar">P</div>
-
-            <div class="student-info">
-              <strong>Priya</strong>
-              <br>
-              <small>● Online</small>
+            <div class="avatar">
+              P
             </div>
 
-            <span>920 XP</span>
+            <div class="student-info">
+
+              <strong>
+                Priya
+              </strong>
+
+              <div class="online">
+                ● Online
+              </div>
+
+            </div>
+
+            <span>
+              920 XP
+            </span>
 
           </div>
 
+
           <div class="student">
 
-            <div class="avatar">R</div>
-
-            <div class="student-info">
-              <strong>Rahul</strong>
-              <br>
-              <small>● Online</small>
+            <div class="avatar">
+              R
             </div>
 
-            <span>870 XP</span>
+            <div class="student-info">
+
+              <strong>
+                Rahul
+              </strong>
+
+              <div class="online">
+                ● Online
+              </div>
+
+            </div>
+
+            <span>
+              870 XP
+            </span>
 
           </div>
 
@@ -668,7 +927,7 @@
           id="chat"
           class="panel-section">
 
-          <h2>Class Chat</h2>
+          <h2>💬 Class Chat</h2>
 
           <br>
 
@@ -676,7 +935,9 @@
 
             <div class="chat-message">
 
-              <strong>Aarav</strong>
+              <strong>
+                Aarav
+              </strong>
 
               <p>
                 Sir, can you explain this question?
@@ -684,17 +945,8 @@
 
             </div>
 
-            <div class="chat-message">
-
-              <strong>Priya</strong>
-
-              <p>
-                I understood it!
-              </p>
-
-            </div>
-
           </div>
+
 
           <div class="chat-input">
 
@@ -717,16 +969,18 @@
           id="leaderboard"
           class="panel-section">
 
-          <h2>🏆 Leaderboard</h2>
+          <h2>
+            🏆 Leaderboard
+          </h2>
 
           <br>
 
+
           <div class="rank">
 
-            <div class="rank-name">
-              🥇
-              <strong>Aarav</strong>
-            </div>
+            <strong>
+              🥇 Aarav
+            </strong>
 
             <span class="xp">
               980 XP
@@ -734,12 +988,12 @@
 
           </div>
 
+
           <div class="rank">
 
-            <div class="rank-name">
-              🥈
-              <strong>Priya</strong>
-            </div>
+            <strong>
+              🥈 Priya
+            </strong>
 
             <span class="xp">
               920 XP
@@ -747,12 +1001,12 @@
 
           </div>
 
+
           <div class="rank">
 
-            <div class="rank-name">
-              🥉
-              <strong>Rahul</strong>
-            </div>
+            <strong>
+              🥉 Rahul
+            </strong>
 
             <span class="xp">
               870 XP
@@ -761,6 +1015,7 @@
           </div>
 
         </section>
+
 
       </div>
 
@@ -771,15 +1026,98 @@
 
   <script>
 
-    /* =========================
+    /* =================================
+       GET ROLE AND CLASS CODE
+    ================================= */
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const role =
+      params.get("role") || "student";
+
+    const classCode =
+      params.get("code") || "------";
+
+
+    const roleDisplay =
+      document.getElementById(
+        "roleDisplay"
+      );
+
+
+    const teacherToolbar =
+      document.getElementById(
+        "teacherToolbar"
+      );
+
+
+    const studentToolbar =
+      document.getElementById(
+        "studentToolbar"
+      );
+
+
+    const teacherSlideButtons =
+      document.getElementById(
+        "teacherSlideButtons"
+      );
+
+
+    /*
+      TEACHER
+    */
+
+    if (role === "teacher") {
+
+      roleDisplay.textContent =
+        "👨‍🏫 Teacher";
+
+      teacherToolbar.style.display =
+        "flex";
+
+      studentToolbar.style.display =
+        "none";
+
+      teacherSlideButtons.style.display =
+        "inline";
+
+    }
+
+
+    /*
+      STUDENT
+    */
+
+    else {
+
+      roleDisplay.textContent =
+        "👨‍🎓 Student";
+
+      teacherToolbar.style.display =
+        "none";
+
+      studentToolbar.style.display =
+        "flex";
+
+      teacherSlideButtons.style.display =
+        "none";
+
+    }
+
+
+    /* =================================
        WHITEBOARD
-    ========================= */
+    ================================= */
 
     const canvas =
       document.getElementById("board");
 
     const ctx =
       canvas.getContext("2d");
+
 
     let drawing = false;
 
@@ -796,7 +1134,7 @@
 
     function resizeCanvas() {
 
-      const oldImage =
+      const image =
         canvas.toDataURL();
 
       canvas.width =
@@ -805,14 +1143,21 @@
       canvas.height =
         canvas.clientHeight;
 
-      const image =
+      const img =
         new Image();
 
-      image.onload = function() {
-        ctx.drawImage(image, 0, 0);
+      img.onload = function() {
+
+        ctx.drawImage(
+          img,
+          0,
+          0
+        );
+
       };
 
-      image.src = oldImage;
+      img.src = image;
+
     }
 
 
@@ -820,6 +1165,7 @@
       "resize",
       resizeCanvas
     );
+
 
     resizeCanvas();
 
@@ -829,15 +1175,18 @@
       startDrawing
     );
 
+
     canvas.addEventListener(
       "pointermove",
       draw
     );
 
+
     canvas.addEventListener(
       "pointerup",
       stopDrawing
     );
+
 
     canvas.addEventListener(
       "pointerleave",
@@ -847,17 +1196,25 @@
 
     function startDrawing(event) {
 
+      if (role !== "teacher")
+        return;
+
+
       if (
         tool !== "pen" &&
         tool !== "highlighter" &&
         tool !== "eraser"
       ) {
+
         return;
+
       }
+
 
       drawing = true;
 
       saveState();
+
 
       ctx.beginPath();
 
@@ -865,46 +1222,67 @@
         event.offsetX,
         event.offsetY
       );
+
     }
 
 
     function draw(event) {
 
-      if (!drawing) return;
+      if (!drawing)
+        return;
+
 
       ctx.lineTo(
         event.offsetX,
         event.offsetY
       );
 
-      ctx.lineWidth = thickness;
 
-      ctx.lineCap = "round";
+      ctx.lineWidth =
+        thickness;
+
+      ctx.lineCap =
+        "round";
+
 
       if (tool === "eraser") {
 
         ctx.globalCompositeOperation =
           "destination-out";
 
-      } else {
+      }
+
+      else {
 
         ctx.globalCompositeOperation =
           "source-over";
 
-        ctx.strokeStyle = color;
+        ctx.strokeStyle =
+          color;
 
-        if (tool === "highlighter") {
 
-          ctx.globalAlpha = 0.25;
+        if (
+          tool ===
+          "highlighter"
+        ) {
 
-        } else {
-
-          ctx.globalAlpha = 1;
+          ctx.globalAlpha =
+            0.25;
 
         }
+
+        else {
+
+          ctx.globalAlpha =
+            1;
+
+        }
+
       }
 
+
       ctx.stroke();
+
 
       ctx.beginPath();
 
@@ -925,54 +1303,76 @@
       ctx.globalCompositeOperation =
         "source-over";
 
-      ctx.closePath();
-
     }
 
 
-    function setTool(newTool, button) {
+    function setTool(
+      newTool,
+      button
+    ) {
+
+      if (role !== "teacher")
+        return;
+
 
       tool = newTool;
 
-      document
-        .querySelectorAll(".tool-btn")
-        .forEach(btn =>
-          btn.classList.remove("active")
-        );
 
-      button.classList.add("active");
+      document
+        .querySelectorAll(
+          ".tool-btn"
+        )
+        .forEach(btn => {
+
+          btn.classList.remove(
+            "active"
+          );
+
+        });
+
+
+      button.classList.add(
+        "active"
+      );
 
     }
 
 
     document
-      .getElementById("colorPicker")
+      .getElementById(
+        "colorPicker"
+      )
       .addEventListener(
         "input",
         function(event) {
 
-          color = event.target.value;
+          color =
+            event.target.value;
 
         }
       );
 
 
     document
-      .getElementById("thickness")
+      .getElementById(
+        "thickness"
+      )
       .addEventListener(
         "input",
         function(event) {
 
           thickness =
-            Number(event.target.value);
+            Number(
+              event.target.value
+            );
 
         }
       );
 
 
-    /* =========================
+    /* =================================
        UNDO / REDO
-    ========================= */
+    ================================= */
 
     function saveState() {
 
@@ -980,8 +1380,12 @@
         canvas.toDataURL()
       );
 
-      if (history.length > 30) {
+      if (
+        history.length > 30
+      ) {
+
         history.shift();
+
       }
 
       redoHistory = [];
@@ -991,65 +1395,91 @@
 
     function restoreImage(data) {
 
-      const image = new Image();
+      const img =
+        new Image();
 
-      image.onload = function() {
 
-        ctx.clearRect(
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
+      img.onload =
+        function() {
 
-        ctx.drawImage(
-          image,
-          0,
-          0
-        );
+          ctx.clearRect(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
 
-      };
 
-      image.src = data;
+          ctx.drawImage(
+            img,
+            0,
+            0
+          );
+
+        };
+
+
+      img.src =
+        data;
 
     }
 
 
     function undo() {
 
-      if (history.length === 0) return;
+      if (
+        role !== "teacher"
+      )
+        return;
+
+
+      if (
+        history.length === 0
+      )
+        return;
+
 
       redoHistory.push(
         canvas.toDataURL()
       );
 
-      const previous =
-        history.pop();
 
-      restoreImage(previous);
+      restoreImage(
+        history.pop()
+      );
 
     }
 
 
     function redo() {
 
-      if (redoHistory.length === 0) return;
+      if (
+        role !== "teacher"
+      )
+        return;
+
+
+      if (
+        redoHistory.length === 0
+      )
+        return;
+
 
       history.push(
         canvas.toDataURL()
       );
 
-      const next =
-        redoHistory.pop();
 
-      restoreImage(next);
+      restoreImage(
+        redoHistory.pop()
+      );
 
     }
 
 
-    /* =========================
+    /* =================================
        SLIDES
-    ========================= */
+    ================================= */
 
     let currentSlide = 1;
 
@@ -1059,19 +1489,29 @@
     function updateSlide() {
 
       document
-        .getElementById("slideNumber")
+        .getElementById(
+          "slideNumber"
+        )
         .textContent =
-        "Slide " + currentSlide;
+        "Slide " +
+        currentSlide;
 
     }
 
 
     function newSlide() {
 
+      if (
+        role !== "teacher"
+      )
+        return;
+
+
       totalSlides++;
 
       currentSlide =
         totalSlides;
+
 
       ctx.clearRect(
         0,
@@ -1080,6 +1520,7 @@
         canvas.height
       );
 
+
       updateSlide();
 
     }
@@ -1087,15 +1528,24 @@
 
     function deleteSlide() {
 
-      if (totalSlides <= 1) {
+      if (
+        role !== "teacher"
+      )
+        return;
+
+
+      if (
+        totalSlides <= 1
+      ) {
 
         alert(
-          "You must keep at least one slide."
+          "You must keep one slide."
         );
 
         return;
 
       }
+
 
       totalSlides--;
 
@@ -1105,12 +1555,14 @@
           totalSlides
         );
 
+
       ctx.clearRect(
         0,
         0,
         canvas.width,
         canvas.height
       );
+
 
       updateSlide();
 
@@ -1119,7 +1571,9 @@
 
     function previousSlide() {
 
-      if (currentSlide > 1) {
+      if (
+        currentSlide > 1
+      ) {
 
         currentSlide--;
 
@@ -1132,7 +1586,10 @@
 
     function nextSlide() {
 
-      if (currentSlide < totalSlides) {
+      if (
+        currentSlide <
+        totalSlides
+      ) {
 
         currentSlide++;
 
@@ -1143,14 +1600,20 @@
     }
 
 
-    /* =========================
-       FEATURES
-    ========================= */
+    /* =================================
+       TEACHER FEATURES
+    ================================= */
 
     function insertPDF() {
 
+      if (
+        role !== "teacher"
+      )
+        return;
+
+
       alert(
-        "📄 PDF upload will be connected next."
+        "📄 PDF upload will be added next."
       );
 
     }
@@ -1158,8 +1621,14 @@
 
     function createPoll() {
 
+      if (
+        role !== "teacher"
+      )
+        return;
+
+
       alert(
-        "📊 Poll creator will be connected next."
+        "📊 Poll creator will be added next."
       );
 
     }
@@ -1167,8 +1636,14 @@
 
     function createQuiz() {
 
+      if (
+        role !== "teacher"
+      )
+        return;
+
+
       alert(
-        "❓ Quiz creator will be connected next."
+        "❓ Quiz creator will be added next."
       );
 
     }
@@ -1176,32 +1651,28 @@
 
     async function shareScreen() {
 
+      if (
+        role !== "teacher"
+      )
+        return;
+
+
       try {
 
-        const stream =
-          await navigator.mediaDevices
-            .getDisplayMedia({
-              video: true
-            });
+        await navigator
+          .mediaDevices
+          .getDisplayMedia({
+            video: true
+          });
+
 
         alert(
           "🖥️ Screen sharing started!"
         );
 
-        stream
-          .getVideoTracks()[0]
-          .addEventListener(
-            "ended",
-            function() {
+      }
 
-              alert(
-                "Screen sharing stopped."
-              );
-
-            }
-          );
-
-      } catch (error) {
+      catch(error) {
 
         console.log(error);
 
@@ -1210,9 +1681,40 @@
     }
 
 
-    /* =========================
+    /* =================================
+       STUDENT FEATURES
+    ================================= */
+
+    function raiseHand() {
+
+      alert(
+        "🙋 Hand raised!"
+      );
+
+    }
+
+
+    function askDoubt() {
+
+      alert(
+        "❓ Your doubt has been sent to the teacher."
+      );
+
+    }
+
+
+    function studentPoll() {
+
+      alert(
+        "📊 There is no active poll right now."
+      );
+
+    }
+
+
+    /* =================================
        SIDE PANEL
-    ========================= */
+    ================================= */
 
     function showPanel(
       panel,
@@ -1220,29 +1722,50 @@
     ) {
 
       document
-        .querySelectorAll(".panel-section")
-        .forEach(section =>
-          section.classList.remove("active")
-        );
+        .querySelectorAll(
+          ".panel-section"
+        )
+        .forEach(section => {
+
+          section.classList.remove(
+            "active"
+          );
+
+        });
+
 
       document
-        .querySelectorAll(".tab")
-        .forEach(tab =>
-          tab.classList.remove("active")
-        );
+        .querySelectorAll(
+          ".tab"
+        )
+        .forEach(tab => {
+
+          tab.classList.remove(
+            "active"
+          );
+
+        });
+
 
       document
-        .getElementById(panel)
-        .classList.add("active");
+        .getElementById(
+          panel
+        )
+        .classList.add(
+          "active"
+        );
 
-      button.classList.add("active");
+
+      button.classList.add(
+        "active"
+      );
 
     }
 
 
-    /* =========================
+    /* =================================
        CHAT
-    ========================= */
+    ================================= */
 
     function sendMessage() {
 
@@ -1251,29 +1774,52 @@
           "chatInput"
         );
 
+
       const text =
         input.value.trim();
 
-      if (!text) return;
+
+      if (!text)
+        return;
+
 
       const message =
-        document.createElement("div");
+        document.createElement(
+          "div"
+        );
+
 
       message.className =
         "chat-message";
 
+
+      const sender =
+        role === "teacher"
+          ? "Teacher"
+          : "Student";
+
+
       message.innerHTML =
-        "<strong>Teacher</strong>" +
+        "<strong>" +
+        sender +
+        "</strong>" +
         "<p>" +
-        text.replace(
-          /</g,
-          "&lt;"
-        ) +
+        text
+          .replace(
+            /</g,
+            "&lt;"
+          ) +
         "</p>";
 
+
       document
-        .getElementById("chatMessages")
-        .appendChild(message);
+        .getElementById(
+          "chatMessages"
+        )
+        .appendChild(
+          message
+        );
+
 
       input.value = "";
 
@@ -1281,13 +1827,19 @@
 
 
     document
-      .getElementById("chatInput")
+      .getElementById(
+        "chatInput"
+      )
       .addEventListener(
         "keydown",
         function(event) {
 
-          if (event.key === "Enter") {
+          if (
+            event.key === "Enter"
+          ) {
+
             sendMessage();
+
           }
 
         }
