@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Login | VocalClass</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background:
+        radial-gradient(circle at top left, #243b80, transparent 35%),
+        radial-gradient(circle at bottom right, #501d72, transparent 35%),
+        #080b16;
+      color: white;
+      padding: 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 430px;
+      padding: 32px;
+      background: rgba(18, 23, 40, 0.95);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .logo-icon {
+      width: 65px;
+      height: 65px;
+      margin: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #4776ff, #9b4dff);
+      font-size: 32px;
+      font-weight: bold;
+    }
+
+    .logo h1 {
+      margin-top: 12px;
+      font-size: 28px;
+    }
+
+    .logo p {
+      margin-top: 5px;
+      color: #9da5bb;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #929bb1;
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .phone-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .country {
+      width: 75px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d1221;
+      border: 1px solid #30384f;
+      border-radius: 12px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #30384f;
+      background: #0d1221;
+      color: white;
+      outline: none;
+      font-size: 16px;
+    }
+
+    input:focus {
+      border-color: #667cff;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 18px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4776ff, #8d4dff);
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #otpSection {
+      display: none;
+      margin-top: 22px;
+    }
+
+    #otpSection.show {
+      display: block;
+    }
+
+    .otp {
+      text-align: center;
+      letter-spacing: 8px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    #recaptcha-container {
+      margin-top: 12px;
+      display: flex;
+      justify-content: center;
+    }
+
+    #message {
+      display: none;
+      margin-top: 18px;
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    #message.show {
+      display: block;
+    }
+
+    .error {
+      background: rgba(255,70,70,0.12);
+      color: #ff9999;
+      border: 1px solid rgba(255,70,70,0.25);
+    }
+
+    .success {
+      background: rgba(60,220,130,0.12);
+      color: #7df0aa;
+      border: 1px solid rgba(60,220,130,0.25);
+    }
+
+    .back {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      color: #8994ad;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .back:hover {
+      color: white;
+    }
+
+    .security {
+      text-align: center;
+      color: #6f7890;
+      font-size: 12px;
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <div class="logo">
+      <div class="logo-icon">V</div>
+      <h1>VocalClass</h1>
+      <p>Virtual Classroom</p>
+    </div>
+
+    <h2>Teacher Login</h2>
+
+    <p class="subtitle">
+      Verify your phone number to continue
+    </p>
+
+    <!-- PHONE -->
+
+    <div id="phoneSection">
+
+      <label for="phone">Phone Number</label>
+
+      <div class="phone-row">
+
+        <div class="country">
+          🇮🇳 +91
+        </div>
+
+        <input
+          id="phone"
+          type="tel"
+          maxlength="10"
+          inputmode="numeric"
+          placeholder="9876543210"
+        >
+
+      </div>
+
+      <div id="recaptcha-container"></div>
+
+      <button id="sendOtp">
+        Send OTP
+      </button>
+
+    </div>
+
+
+    <!-- OTP -->
+
+    <div id="otpSection">
+
+      <label for="otp">Enter OTP</label>
+
+      <input
+        id="otp"
+        class="otp"
+        type="text"
+        maxlength="6"
+        inputmode="numeric"
+        placeholder="••••••"
+      >
+
+      <button id="verifyOtp">
+        Verify OTP
+      </button>
+
+    </div>
+
+
+    <div id="message"></div>
+
+    <div class="security">
+      🔐 Secured by Firebase Authentication
+    </div>
+
+    <a href="index.html" class="back">
+      ← Back to VocalClass
+    </a>
+
+  </div>
+
+
+  <script type="module">
+
+    import {
+      RecaptchaVerifier,
+      signInWithPhoneNumber
+    } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+
+    import { auth } from "./firebase-config.js";
+
+
+    const phoneInput = document.getElementById("phone");
+    const otpInput = document.getElementById("otp");
+
+    const sendOtpButton = document.getElementById("sendOtp");
+    const verifyOtpButton = document.getElementById("verifyOtp");
+
+    const phoneSection = document.getElementById("phoneSection");
+    const otpSection = document.getElementById("otpSection");
+
+    const message = document.getElementById("message");
+
+
+    let confirmationResult;
+
+
+    function showMessage(text, type) {
+
+      message.textContent = text;
+
+      message.className = "";
+
+      message.classList.add("show");
+
+      if (type === "error") {
+        message.classList.add("error");
+      }
+
+      if (type === "success") {
+        message.classList.add("success");
+      }
+    }
+
+
+    // Firebase reCAPTCHA
+
+    window.recaptchaVerifier = new RecaptchaVerifier(
+      auth,
+      "recaptcha-container",
+      {
+        size: "normal"
+      }
+    );
+
+
+    // SEND OTP
+
+    sendOtpButton.addEventListener("click", async () => {
+
+      const phone = phoneInput.value.trim();
+
+      if (!/^[0-9]{10}$/.test(phone)) {
+
+        showMessage(
+          "Please enter a valid 10-digit Indian phone number.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      const fullPhoneNumber = "+91" + phone;
+
+
+      sendOtpButton.disabled = true;
+
+      sendOtpButton.textContent = "Sending OTP...";
+
+
+      try {
+
+        confirmationResult =
+          await signInWithPhoneNumber(
+            auth,
+            fullPhoneNumber,
+            window.recaptchaVerifier
+          );
+
+
+        showMessage(
+          "OTP sent successfully! Check your phone.",
+          "success"
+        );
+
+
+        otpSection.classList.add("show");
+
+        phoneSection.style.display = "none";
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        showMessage(
+          error.message || "Unable to send OTP.",
+          "error"
+        );
+
+
+        sendOtpButton.disabled = false;
+
+        sendOtpButton.textContent = "Send OTP";
+
+
+        try {
+
+          window.recaptchaVerifier.clear();
+
+          window.recaptchaVerifier =
+            new RecaptchaVerifier(
+              auth,
+              "recaptcha-container",
+              {
+                size: "normal"
+              }
+            );
+
+        } catch (e) {
+
+          console.error(e);
+
+        }
+
+      }
+
+    });
+
+
+    // VERIFY OTP
+
+    verifyOtpButton.addEventListener("click", async () => {
+
+      const otp = otpInput.value.trim();
+
+
+      if (!/^[0-9]{6}$/.test(otp)) {
+
+        showMessage(
+          "Please enter the 6-digit OTP.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      verifyOtpButton.disabled = true;
+
+      verifyOtpButton.textContent = "Verifying...";
+
+
+      try {
+
+        const result =
+          await confirmationResult.confirm(otp);
+
+
+        const user = result.user;
+
+
+        showMessage(
+          "Phone verified successfully! 🎉",
+          "success"
+        );
+
+
+        console.log("Logged-in user:", user.uid);
+
+
+        /*
+          TEMPORARY:
+          We'll add the real teacher-role
+          verification here next.
+        */
+
+
+        setTimeout(() => {
+
+          window.location.href = "teacher.html";
+
+        }, 1200);
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        showMessage(
+          "Invalid OTP. Please try again.",
+          "error"
+        );
+
+        verifyOtpButton.disabled = false;
+
+        verifyOtpButton.textContent = "Verify OTP";
+
+      }
+
+    });
+
+  </script>
+
+</body>
+</html>
