@@ -18,7 +18,7 @@ export function friendlyError(error) {
     "auth/operation-not-allowed": "Email/password login must be enabled in Firebase Authentication.",
     "auth/too-many-requests": "Too many attempts. Please wait and try again.",
     "permission-denied": "You do not have permission to perform that action.",
-    "unavailable": "Network unavailable. Check your connection and try again."
+    "unavailable": "Could not reach Firestore from this browser. Refresh and try again; if it continues, check that Firestore is created/enabled for this Firebase project and that no browser extension, VPN, school/work firewall, or privacy setting is blocking firestore.googleapis.com."
   };
   return messages[code] || "Something went wrong. Please try again.";
 }
