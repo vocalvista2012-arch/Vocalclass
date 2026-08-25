@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>VocalClass - Interactive Learning</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #0b1020;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 1100px;
+      text-align: center;
+    }
+
+    .logo {
+      font-size: 42px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .logo span {
+      color: #6c63ff;
+    }
+
+    .tagline {
+      color: #aab1c5;
+      font-size: 18px;
+      margin-bottom: 45px;
+    }
+
+    .features {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 45px;
+    }
+
+    .feature {
+      background: #151c32;
+      border: 1px solid #293452;
+      padding: 14px 20px;
+      border-radius: 12px;
+      color: #dce2f2;
+    }
+
+    .cards {
+      display: flex;
+      justify-content: center;
+      gap: 25px;
+      flex-wrap: wrap;
+    }
+
+    .card {
+      width: 300px;
+      padding: 30px;
+      background: #151c32;
+      border: 1px solid #293452;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .icon {
+      font-size: 50px;
+      margin-bottom: 15px;
+    }
+
+    .card h2 {
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      color: #aab1c5;
+      line-height: 1.5;
+      margin-bottom: 25px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #6c63ff;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      background: #7b73ff;
+    }
+
+    .student button {
+      background: #00a884;
+    }
+
+    .student button:hover {
+      background: #08b993;
+    }
+
+    footer {
+      margin-top: 45px;
+      color: #707991;
+      font-size: 13px;
+    }
+
+    @media (max-width: 650px) {
+      .logo {
+        font-size: 34px;
+      }
+
+      .card {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="logo">
+      Vocal<span>Class</span>
+    </div>
+
+    <div class="tagline">
+      Live. Learn. Interact. Compete.
+    </div>
+
+    <div class="features">
+      <div class="feature">🎥 Live Classes</div>
+      <div class="feature">✏️ Smart Whiteboard</div>
+      <div class="feature">📝 Quizzes</div>
+      <div class="feature">🏆 Leaderboards</div>
+      <div class="feature">⚡ Fastest Finger</div>
+    </div>
+
+    <div class="cards">
+
+      <!-- Teacher -->
+      <div class="card">
+        <div class="icon">👨‍🏫</div>
+
+        <h2>Teacher</h2>
+
+        <p>
+          Create and manage live classrooms, use the interactive
+          whiteboard, create quizzes and polls, and track students.
+        </p>
+
+        <button onclick="teacherLogin()">
+          Enter Teacher Panel
+        </button>
+      </div>
+
+      <!-- Student -->
+      <div class="card student">
+        <div class="icon">👨‍🎓</div>
+
+        <h2>Student</h2>
+
+        <p>
+          Join a live classroom, answer quizzes, participate in polls,
+          earn badges and compete on the leaderboard.
+        </p>
+
+        <button onclick="studentLogin()">
+          Join Classroom
+        </button>
+      </div>
+
+    </div>
+
+    <footer>
+      © 2026 VocalClass • Interactive Learning Platform
+    </footer>
+
+  </div>
+
+  <script>
+
+    function teacherLogin() {
+      alert("Teacher panel coming next!");
+      // Later:
+      // window.location.href = "teacher.html";
+    }
+
+    function studentLogin() {
+      alert("Student join page coming next!");
+      // Later:
+      // window.location.href = "student.html";
+    }
+
+  </script>
+
+</body>
+</html>
