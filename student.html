@@ -3,38 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>VocalClass - Join Classroom</title>
 
   <style>
     * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      box-sizing: border-box;
       font-family: Arial, sans-serif;
     }
 
     body {
       min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background:
         radial-gradient(circle at top left, #24205c, transparent 35%),
         radial-gradient(circle at bottom right, #063f48, transparent 35%),
         #080d1c;
       color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
 
     .container {
       width: 92%;
-      max-width: 500px;
+      max-width: 480px;
       text-align: center;
     }
 
     .logo {
       font-size: 42px;
-      font-weight: 800;
+      font-weight: bold;
       margin-bottom: 10px;
     }
 
@@ -44,15 +43,14 @@
 
     .subtitle {
       color: #9da7bd;
-      margin-bottom: 35px;
+      margin-bottom: 30px;
     }
 
     .box {
-      background: rgba(18, 25, 45, 0.96);
+      background: #12192d;
       border: 1px solid #2c3858;
       border-radius: 22px;
       padding: 35px;
-      box-shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
     }
 
     .icon {
@@ -99,12 +97,10 @@
       font-size: 16px;
       font-weight: bold;
       cursor: pointer;
-      transition: 0.2s;
     }
 
     button:hover {
       background: #08b993;
-      transform: translateY(-2px);
     }
 
     .message {
@@ -118,14 +114,12 @@
       display: block;
       background: #351c24;
       color: #ff8e9d;
-      border: 1px solid #63303d;
     }
 
     .success {
       display: block;
       background: #102d24;
       color: #63e6a5;
-      border: 1px solid #21684d;
     }
 
     .back {
@@ -133,20 +127,6 @@
       margin-top: 25px;
       color: #8d87ff;
       text-decoration: none;
-    }
-
-    .back:hover {
-      text-decoration: underline;
-    }
-
-    .info {
-      margin-top: 25px;
-      padding: 15px;
-      background: #11182b;
-      border-radius: 12px;
-      color: #8993aa;
-      font-size: 13px;
-      line-height: 1.5;
     }
   </style>
 </head>
@@ -170,8 +150,7 @@
       <h1>Join Classroom</h1>
 
       <p class="description">
-        Enter the class code given by your teacher
-        to join the live classroom.
+        Enter the 6-character class code given by your teacher.
       </p>
 
       <input
@@ -187,11 +166,6 @@
       </button>
 
       <div id="message" class="message"></div>
-
-      <div class="info">
-        🔒 Your classroom information is only available
-        to members of the class.
-      </div>
 
     </div>
 
@@ -215,7 +189,6 @@
       const code =
         input.value.trim().toUpperCase();
 
-
       if (code.length !== 6) {
 
         message.className = "message error";
@@ -226,31 +199,20 @@
         return;
       }
 
-
-      /*
-        DEMO ONLY
-
-        Later this will check the class code
-        from Firebase.
-      */
-
       message.className = "message success";
 
       message.textContent =
-        "✅ Class found! Joining classroom...";
+        "✅ Class found! Joining as student...";
 
-
-      setTimeout(function() {
+      setTimeout(() => {
 
         window.location.href =
-          "classroom.html?code=" + code;
+          "classroom.html?role=student&code=" + code;
 
-      }, 1000);
-
+      }, 800);
     }
 
 
-    // Allow pressing ENTER to join
     document
       .getElementById("classCode")
       .addEventListener("keydown", function(event) {
