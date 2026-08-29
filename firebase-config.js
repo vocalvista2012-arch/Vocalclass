@@ -1,7 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import { getAuth, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import { initializeFirestore } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyD2WCO8qa17uGaA88x31AT-wSOEbEvAOOI",
   authDomain: "vocalclass-66f4d.firebaseapp.com",
   projectId: "vocalclass-66f4d",
@@ -12,5 +14,10 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-
 export const auth = getAuth(app);
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  useFetchStreams: false
+});
+export const storage = getStorage(app);
+export const authPersistenceReady = setPersistence(auth, browserLocalPersistence).catch((error) => console.error("Auth persistence failed", error));
