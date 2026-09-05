@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VocalClass Live Class</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080b16;color:#fff;font-family:Arial,sans-serif;min-height:100vh}.top{height:60px;background:#101525;border-bottom:1px solid #29324b;display:flex;align-items:center;justify-content:space-between;padding:0 18px}.logo{font-size:22px;font-weight:800}.logo span{color:#7067ff}.status{color:#ff5d6c;font-weight:700}.wrap{padding:14px;max-width:1300px;margin:auto}.join{display:flex;gap:8px;flex-wrap:wrap;background:#101525;border:1px solid #29324b;border-radius:12px;padding:12px;margin-bottom:14px}.join input{flex:1;min-width:180px;background:#080d1b;border:1px solid #34405f;color:#fff;border-radius:8px;padding:11px}.btn{border:0;border-radius:8px;padding:11px 15px;background:#7067ff;color:#fff;font-weight:700;cursor:pointer}.btn.secondary{background:#242d47}.btn.danger{background:#d94b5b}.videos{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.card{position:relative;min-height:210px;background:#111625;border:1px solid #303b58;border-radius:12px;overflow:hidden}.card video{width:100%;height:100%;min-height:210px;object-fit:cover;background:#171e33;display:block}.name{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.7);padding:6px 9px;border-radius:7px;font-size:13px}.badge{position:absolute;right:8px;top:8px;background:rgba(0,0,0,.65);padding:5px 8px;border-radius:7px;font-size:12px}.controls{position:sticky;bottom:0;margin-top:14px;background:#101525;border:1px solid #29324b;border-radius:12px;padding:10px;display:flex;gap:8px;flex-wrap:wrap}.help{color:#aeb6ca;font-size:13px;line-height:1.5;margin-top:10px}.empty{padding:50px;text-align:center;color:#8f99b1}.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5d6c;margin-right:6px}@media(max-width:600px){.wrap{padding:8px}.videos{grid-template-columns:1fr}.top{padding:0 10px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="logo">Vocal<span>Class</span></div><div><span class="live-dot"></span><span id="status">Not connected</span></div></header>
+<main class="wrap">
+<section class="join">
+<input id="code" placeholder="Activation code e.g. VC-ABC123" autocomplete="off">
+<input id="name" placeholder="Your name" autocomplete="name">
+<button class="btn" id="joinBtn">Join Live Class</button>
+<button class="btn secondary" id="startBtn">Start Live Class</button>
+</section>
+<div id="videos" class="videos"><div class="empty">Enter the classroom activation code, then join. Camera and microphone permission will be requested by your browser.</div></div>
+<div class="controls">
+<button class="btn secondary" id="cameraBtn" disabled>🎥 Camera On</button>
+<button class="btn secondary" id="micBtn" disabled>🎙️ Mic On</button>
+<button class="btn secondary" id="screenBtn" disabled>🖥️ Share Screen</button>
+<button class="btn danger" id="endBtn" disabled>⛔ End / Leave</button>
+</div>
+<div class="help">Camera and microphone are only used after you choose to join/start and your browser grants permission. For reliable large classes, a media server/SFU is recommended; this prototype uses WebRTC peer-to-peer connections.</div>
+</main>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+const firebaseConfig={apiKey:"AIzaSyD2WCO8qa17uGaA88x31AT-wSOEbEvAOOI",authDomain:"vocalclass-66f4d.firebaseapp.com",projectId:"vocalclass-66f4d",storageBucket:"vocalclass-66f4d.firebasestorage.app",messagingSenderId:"885399749203",appId:"1:885399749203:web:c38cd8d8c53e1c11cbbca6",measurementId:"G-17Y2R4S565"};
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+const ICE={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
+let uid=null,roomCode="",roomRef=null,participantRef=null,localStream=null,screenStream=null,unsubscribeParticipants=null;
+const peers=new Map(),candidateUnsubs=new Map();
+const $=id=>document.getElementById(id);
+function setStatus(t){$("status").textContent=t}
+function toast(t){setStatus(t);console.log(t)}
+function addVideo(id,name,stream,local=false){let card=document.getElementById("card-"+id);if(!card){card=document.createElement("div");card.className="card";card.id="card-"+id;const v=document.createElement("video");v.autoplay=true;v.playsInline=true;if(local)v.muted=true;card.appendChild(v);const n=document.createElement("div");n.className="name";n.textContent=name+(local?" (You)":"");card.appendChild(n);const b=document.createElement("div");b.className="badge";b.textContent=local?"YOU":"LIVE";card.appendChild(b);$("videos").innerHTML="";$("videos").appendChild(card)}card.querySelector("video").srcObject=stream}
+function removeVideo(id){document.getElementById("card-"+id)?.remove()}
+async function ensureAuth(){if(!auth.currentUser)await signInAnonymously(auth);uid=auth.currentUser.uid}
+async function getRoom(){if(!roomCode)throw Error("Enter an activation code");roomRef=doc(db,"liveClassrooms",roomCode);const snap=await getDoc(roomRef);if(!snap.exists())throw Error("Classroom not found. Start the class from the teacher account first.");if(snap.data().active!==true)throw Error("This class is not live.")}
+async function startMedia(){if(localStream)return;localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});addVideo(uid,$("name").value.trim()||"Participant",localStream,true);$("cameraBtn").disabled=false;$("micBtn").disabled=false;$("screenBtn").disabled=false;$("endBtn").disabled=false}
+function makePeer(remoteId,remoteName,initiator){if(peers.has(remoteId))return peers.get(remoteId);const pc=new RTCPeerConnection(ICE);peers.set(remoteId,pc);localStream?.getTracks().forEach(t=>pc.addTrack(t,localStream));pc.ontrack=e=>addVideo(remoteId,remoteName,e.streams[0]);pc.onicecandidate=async e=>{if(e.candidate)await addDoc(collection(roomRef,"participants",remoteId,"candidates",uid),e.candidate.toJSON())};
+if(initiator){(async()=>{const offer=await pc.createOffer();await pc.setLocalDescription(offer);await setDoc(doc(roomRef,"participants",remoteId,"offers",uid),{from:uid,to:remoteId,offer:{type:offer.type,sdp:offer.sdp},createdAt:serverTimestamp()})})()}
+const offerUnsub=onSnapshot(doc(roomRef,"participants",uid,"offers",remoteId),async s=>{if(!s.exists()||pc.currentRemoteDescription)return;const d=s.data();if(d.to!==uid)return;await pc.setRemoteDescription(d.offer);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);await setDoc(doc(roomRef,"participants",remoteId,"answers",uid),{from:uid,to:remoteId,answer:{type:answer.type,sdp:answer.sdp},createdAt:serverTimestamp()})});
+const answerUnsub=onSnapshot(doc(roomRef,"participants",uid,"answers",remoteId),async s=>{if(!s.exists()||pc.currentRemoteDescription)return;const d=s.data();if(d.to!==uid)return;await pc.setRemoteDescription(d.answer)});
+candidateUnsubs.set(remoteId,[offerUnsub,answerUnsub]);return pc}
+async function watchRoom(){unsubscribeParticipants=onSnapshot(collection(roomRef,"participants"),snap=>{snap.docChanges().forEach(change=>{const p=change.doc.data(),id=change.doc.id;if(id===uid)return;if(change.type==="removed"){peers.get(id)?.close();peers.delete(id);removeVideo(id);return}const pc=makePeer(id,p.name||"Student",uid<id);if(!pc)return})})}
+async function join(start=false){try{if(!$("code").value.trim())throw Error("Enter the activation code");if(!$("name").value.trim())$("name").value=roleName();await ensureAuth();roomCode=$("code").value.trim().toUpperCase();if(start){roomRef=doc(db,"liveClassrooms",roomCode);await setDoc(roomRef,{code:roomCode,active:true,teacherId:uid,startedAt:serverTimestamp()});}else await getRoom();await startMedia();participantRef=doc(roomRef,"participants",uid);await setDoc(participantRef,{name:$("name").value.trim(),uid,role:start?"teacher":"student",camera:true,mic:true,joinedAt:serverTimestamp()});await watchRoom();setStatus("LIVE • "+roomCode);$("joinBtn").disabled=true;$("startBtn").disabled=true}catch(e){console.error(e);toast("❌ "+(e.message||"Could not join"))}}
+function roleName(){return new URLSearchParams(location.search).get("name")||"Participant"}
+async function leave(){try{unsubscribeParticipants?.();candidateUnsubs.forEach(a=>a.forEach(u=>u()));peers.forEach(p=>p.close());peers.clear();if(participantRef)await deleteDoc(participantRef);if(screenStream){screenStream.getTracks().forEach(t=>t.stop());screenStream=null}if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null}if(roleMode==="teacher"&&roomRef)await updateDoc(roomRef,{active:false,endedAt:serverTimestamp()})}catch(e){console.error(e)}location.reload()}
+const roleMode=new URLSearchParams(location.search).get("role")==="teacher"?"teacher":"student";
+$("startBtn").style.display=roleMode==="teacher"?"inline-block":"none";
+$("joinBtn").style.display=roleMode==="teacher"?"none":"inline-block";
+$("name").value=new URLSearchParams(location.search).get("name")||"";
+$("code").value=new URLSearchParams(location.search).get("code")||"";
+$("joinBtn").onclick=()=>join(false);$("startBtn").onclick=()=>join(true);$("endBtn").onclick=leave;
+$("cameraBtn").onclick=()=>{const t=localStream?.getVideoTracks()[0];if(t){t.enabled=!t.enabled;$("cameraBtn").textContent=t.enabled?"🎥 Camera On":"🚫 Camera Off"}};
+$("micBtn").onclick=()=>{const t=localStream?.getAudioTracks()[0];if(t){t.enabled=!t.enabled;$("micBtn").textContent=t.enabled?"🎙️ Mic On":"🔇 Mic Off"}};
+$("screenBtn").onclick=async()=>{try{screenStream=await navigator.mediaDevices.getDisplayMedia({video:true});const screen=screenStream.getVideoTracks()[0];localStream?.getVideoTracks().forEach(t=>t.stop());localStream?.addTrack(screen);document.querySelector("#card-"+uid+" video").srcObject=localStream;screen.onended=()=>location.reload()}catch(e){toast("Screen sharing cancelled")}};
+if(!navigator.mediaDevices?.getUserMedia){toast("Camera/mic require HTTPS or localhost.")}
+</script>
+</body>
+</html>
