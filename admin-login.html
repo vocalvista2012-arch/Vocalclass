@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VocalClass - Admin Login</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at top left,#24205c,transparent 35%),radial-gradient(circle at bottom right,#063f48,transparent 35%),#080d1c;color:#fff}.box{width:min(92%,430px);padding:36px;background:rgba(18,25,45,.96);border:1px solid #2c3858;border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.logo{text-align:center;font-size:38px;font-weight:800}.logo span{color:#7067ff}.sub{text-align:center;color:#9da7bd;margin:10px 0 28px}.badge{text-align:center;color:#cfd5e6;margin-bottom:24px}.field{margin-bottom:16px}.field label{display:block;margin-bottom:8px;color:#dce2f2;font-size:14px}.field input{width:100%;padding:14px;border-radius:10px;border:1px solid #35415f;background:#0e1528;color:#fff;outline:none}.field input:focus{border-color:#7067ff}.btn{width:100%;padding:14px;border:0;border-radius:10px;background:#7067ff;color:#fff;font-weight:bold;font-size:16px;cursor:pointer}.btn:hover{background:#8179ff}.msg{min-height:22px;text-align:center;margin-top:15px;color:#ffb4b4;font-size:14px}.back{display:block;text-align:center;margin-top:20px;color:#9da7bd;text-decoration:none}.back:hover{color:#fff}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">Vocal<span>Class</span></div>
+  <div class="sub">Administrator Portal</div>
+  <div class="badge">🔐 Secure Admin Login</div>
+  <form id="loginForm">
+    <div class="field"><label for="email">Admin Email</label><input id="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+    <button class="btn" type="submit">Login to Dashboard →</button>
+  </form>
+  <div id="msg" class="msg"></div>
+  <a class="back" href="index.html">← Back to VocalClass</a>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { firebaseConfig } from "./firebase-config.js";
+
+const ADMIN_EMAIL = "admin@vocalclass.app";
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const msg = document.getElementById("msg");
+
+onAuthStateChanged(auth, user => {
+  if (user && user.email?.toLowerCase() === ADMIN_EMAIL) location.replace("admin-dashboard.html");
+});
+
+document.getElementById("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  msg.textContent = "Signing in...";
+  try {
+    const email = document.getElementById("email").value.trim().toLowerCase();
+    const password = document.getElementById("password").value;
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    if (cred.user.email?.toLowerCase() !== ADMIN_EMAIL) {
+      await signOut(auth);
+      throw new Error("Access denied. This account is not an administrator.");
+    }
+    location.replace("admin-dashboard.html");
+  } catch (err) {
+    msg.textContent = err.message.includes("Access denied") ? err.message : "Login failed. Check the admin email and password.";
+  }
+});
+</script>
+</body>
+</html>
