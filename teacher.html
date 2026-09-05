@@ -1,214 +1,36 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VocalClass - Teacher Panel</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
-    body{min-height:100vh;background:#0b1020;color:white}
-    .topbar{height:70px;background:#11182b;border-bottom:1px solid #293452;display:flex;align-items:center;justify-content:space-between;padding:0 25px}
-    .logo{font-size:25px;font-weight:bold}.logo span{color:#6c63ff}.teacher-name{color:#aab1c5}
-    .main{padding:30px;max-width:1300px;margin:auto}.welcome h1{font-size:30px;margin-bottom:8px}.welcome p{color:#9da7bd}
-    .activation{margin-top:30px;background:#151c32;border:1px solid #293452;border-radius:18px;padding:25px}.activation h2{margin-bottom:8px}.activation p{color:#9da7bd;margin-bottom:20px}
-    .activation-box{display:flex;gap:12px;flex-wrap:wrap}input{flex:1;min-width:220px;padding:14px;border-radius:10px;border:1px solid #35405f;background:#0c1222;color:white;font-size:16px;outline:none}input:focus{border-color:#6c63ff}
-    button{border:none;border-radius:10px;padding:14px 20px;background:#6c63ff;color:white;font-weight:bold;cursor:pointer;transition:.2s}button:hover{transform:translateY(-2px);opacity:.9}.activate-btn{background:#00a884}.secondary-btn{background:#293452}.danger-btn{background:#b23b4b;padding:9px 13px;font-size:13px}
-    .status{margin-top:18px;padding:12px;border-radius:10px;background:#0d1720;color:#aab1c5;display:none}.status.active{display:block;color:#51e39a;border:1px solid #1d704c}.status.error{display:block;color:#ff9b9b;border:1px solid #7a2c35}
-    .class-info{margin-top:25px;display:none;grid-template-columns:repeat(3,1fr);gap:18px}.info-card{background:#151c32;border:1px solid #293452;border-radius:15px;padding:20px}.info-card small{color:#8791a8}.info-card h3{margin-top:8px;font-size:23px}
-    .codes{margin-top:30px;background:#151c32;border:1px solid #293452;border-radius:18px;padding:25px}.codes-header{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:18px}.code-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 0;border-top:1px solid #293452}.code-main strong{font-size:20px;letter-spacing:2px}.code-meta{color:#8791a8;font-size:13px;margin-top:5px}.badge{padding:5px 9px;border-radius:20px;font-size:12px}.badge.active{color:#51e39a;background:#123c2c}.badge.disabled{color:#ff9b9b;background:#3d1820}
-    .tools{margin-top:30px}.tools h2{margin-bottom:18px}.tool-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.tool{background:#151c32;border:1px solid #293452;border-radius:15px;padding:22px;cursor:pointer;transition:.2s}.tool:hover{border-color:#6c63ff;transform:translateY(-3px)}.tool-icon{font-size:30px;margin-bottom:12px}.tool h3{margin-bottom:5px}.tool p{color:#8791a8;font-size:14px}
-    .students{margin-top:30px;background:#151c32;border:1px solid #293452;border-radius:18px;padding:25px}.students-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.student{display:flex;justify-content:space-between;align-items:center;padding:15px;border-top:1px solid #293452}.student-name{display:flex;gap:12px;align-items:center}.avatar{width:38px;height:38px;border-radius:50%;background:#6c63ff;display:flex;align-items:center;justify-content:center;font-weight:bold}.online{color:#51e39a;font-size:13px}
-    .loading{color:#8791a8;padding:15px 0}.empty{color:#8791a8;padding:10px 0}
-    @media(max-width:850px){.tool-grid{grid-template-columns:repeat(2,1fr)}.class-info{grid-template-columns:1fr}}@media(max-width:550px){.main{padding:18px}.tool-grid{grid-template-columns:1fr}.topbar{padding:0 15px}.code-row{align-items:flex-start;flex-direction:column}.codes-header{align-items:flex-start;flex-direction:column}}
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VocalClass — Teacher</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#080d1c;color:#fff;min-height:100vh}.top{height:70px;background:#11182b;border-bottom:1px solid #293452;display:flex;align-items:center;justify-content:space-between;padding:0 24px}.logo{font-size:25px;font-weight:800}.logo span{color:#7067ff}.who{color:#aab1c5;font-size:14px}.wrap{max-width:1100px;margin:auto;padding:28px}.hero h1{margin:0 0 7px;font-size:32px}.hero p{margin:0;color:#9da7bd}.card{margin-top:24px;background:#151c32;border:1px solid #293452;border-radius:18px;padding:24px}.row{display:flex;gap:12px;flex-wrap:wrap}input{flex:1;min-width:240px;background:#0b1122;color:#fff;border:1px solid #35405f;border-radius:11px;padding:14px;font-size:16px;outline:0}button{border:0;border-radius:10px;padding:13px 18px;background:#7067ff;color:#fff;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}.green{background:#00a884}.gray{background:#293452}.red{background:#b23b4b}.status{margin-top:15px;padding:12px;border-radius:10px;background:#0d1720;color:#9da7bd;display:none}.status.show{display:block}.status.ok{color:#63e6a5;border:1px solid #1d704c}.status.err{color:#ff9aa7;border:1px solid #7a2c35}.code{font-size:42px;letter-spacing:8px;font-weight:900;margin:8px 0}.muted{color:#8791a8}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.stat{background:#0e1528;border:1px solid #293452;border-radius:14px;padding:18px}.stat b{display:block;font-size:26px;margin-top:5px}.student{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid #293452}.pill{padding:5px 9px;border-radius:20px;background:#123c2c;color:#63e6a5;font-size:12px}.empty{color:#8791a8;padding:12px 0}@media(max-width:700px){.wrap{padding:18px}.grid{grid-template-columns:1fr}.code{font-size:30px;letter-spacing:5px}}
+</style>
 </head>
 <body>
-  <header class="topbar"><div class="logo">Vocal<span>Class</span></div><div class="teacher-name" id="teacherLabel">👨‍🏫 Teacher Panel</div></header>
-  <main class="main">
-    <section class="welcome"><h1>Teacher Dashboard</h1><p>Create and manage your interactive live classroom.</p></section>
-
-    <section class="activation">
-      <h2>🔑 Create Activation Code</h2>
-      <p>Create a unique classroom activation code. It will be saved to Firebase and linked to your teacher account.</p>
-      <div class="activation-box">
-        <input type="text" id="classroomName" placeholder="Classroom name (e.g. Class 8A - Maths)" maxlength="60">
-        <button class="activate-btn" id="createCodeBtn" onclick="createActivationCode()">Create Code</button>
-      </div>
-      <div id="status" class="status"></div>
-    </section>
-
-    <section id="classInfo" class="class-info">
-      <div class="info-card"><small>Activation Code</small><h3 id="classCode">------</h3></div>
-      <div class="info-card"><small>Students</small><h3 id="studentCount">0</h3></div>
-      <div class="info-card"><small>Class Status</small><h3 id="classStatus">🟢 Active</h3></div>
-    </section>
-
-    <section class="codes">
-      <div class="codes-header"><div><h2>🎟️ My Activation Codes</h2><p style="color:#8791a8;margin-top:5px">Codes created by your signed-in teacher account.</p></div><button class="secondary-btn" onclick="loadMyCodes()">🔄 Refresh</button></div>
-      <div id="codeList"><div class="loading">Loading your codes...</div></div>
-    </section>
-
-    <section class="tools"><h2>🧑‍🏫 Classroom Tools</h2><div class="tool-grid">
-      <div class="tool" onclick="openTool('whiteboard')"><div class="tool-icon">✏️</div><h3>Whiteboard</h3><p>Open interactive whiteboard</p></div>
-      <div class="tool" onclick="openTool('video')"><div class="tool-icon">🎥</div><h3>Live Class</h3><p>Start video classroom</p></div>
-      <div class="tool" onclick="openTool('pdf')"><div class="tool-icon">📄</div><h3>Insert PDF</h3><p>Add learning material</p></div>
-      <div class="tool" onclick="openTool('quiz')"><div class="tool-icon">❓</div><h3>Create Quiz</h3><p>Create interactive questions</p></div>
-      <div class="tool" onclick="openTool('poll')"><div class="tool-icon">📊</div><h3>Poll</h3><p>Create a live poll</p></div>
-      <div class="tool" onclick="openTool('screen')"><div class="tool-icon">🖥️</div><h3>Screen Share</h3><p>Share your screen</p></div>
-      <div class="tool" onclick="openTool('students')"><div class="tool-icon">👨‍🎓</div><h3>Students</h3><p>View student performance</p></div>
-      <div class="tool" onclick="openTool('leaderboard')"><div class="tool-icon">🏆</div><h3>Leaderboard</h3><p>View class rankings</p></div>
-    </div></section>
-
-    <section class="students"><div class="students-header"><h2>👨‍🎓 Students</h2><button onclick="refreshStudents()">🔄 Refresh</button></div><div id="studentList"><div class="empty">No students connected yet.</div></div></section>
-  </main>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-    import { getFirestore, collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2WCO8qa17uGaA88x31AT-wSOEbEvAOOI",
-      authDomain: "vocalclass-66f4d.firebaseapp.com",
-      projectId: "vocalclass-66f4d",
-      storageBucket: "vocalclass-66f4d.firebasestorage.app",
-      messagingSenderId: "885399749203",
-      appId: "1:885399749203:web:c38cd8d8c53e1c11cbbca6",
-      measurementId: "G-17Y2R4S565"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    let currentUser = null;
-
-    const $ = id => document.getElementById(id);
-    const setStatus = (message, type = "active") => {
-      const el = $("status");
-      el.textContent = message;
-      el.className = "status " + type;
-      el.style.display = "block";
-    };
-
-    function generateActivationCode() {
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      let code = "VC-";
-      for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-      return code;
-    }
-
-    async function createActivationCode() {
-      if (!currentUser) return setStatus("⚠️ Please sign in as a teacher first.", "error");
-      const name = $("classroomName").value.trim();
-      if (!name) return setStatus("⚠️ Enter a classroom name first.", "error");
-
-      const btn = $("createCodeBtn");
-      btn.disabled = true;
-      btn.textContent = "Creating...";
-
-      try {
-        let code;
-        let existing;
-        do {
-          code = generateActivationCode();
-          existing = await getDoc(doc(db, "activationCodes", code));
-        } while (existing.exists());
-
-        await setDoc(doc(db, "activationCodes", code), {
-          code,
-          teacherId: currentUser.uid,
-          teacherEmail: currentUser.email || "",
-          classroomName: name,
-          active: true,
-          studentCount: 0,
-          createdAt: serverTimestamp()
-        });
-
-        $("classInfo").style.display = "grid";
-        $("classCode").textContent = code;
-        $("studentCount").textContent = "0";
-        $("classStatus").textContent = "🟢 Active";
-        setStatus("✅ Activation code created successfully: " + code);
-        $("classroomName").value = "";
-        await loadMyCodes();
-      } catch (error) {
-        console.error(error);
-        setStatus("❌ Could not create the code. Check Firebase Authentication and Firestore rules.", "error");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Create Code";
-      }
-    }
-
-    async function loadMyCodes() {
-      if (!currentUser) return;
-      const list = $("codeList");
-      list.innerHTML = '<div class="loading">Loading your codes...</div>';
-      try {
-        const q = query(collection(db, "activationCodes"), where("teacherId", "==", currentUser.uid));
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) {
-          list.innerHTML = '<div class="empty">No activation codes yet. Create your first one above.</div>';
-          return;
-        }
-        const rows = [];
-        snapshot.forEach(item => {
-          const data = item.data();
-          rows.push(`
-            <div class="code-row">
-              <div class="code-main"><strong>${escapeHtml(data.code || item.id)}</strong><div class="code-meta">${escapeHtml(data.classroomName || "Classroom")} · ${data.studentCount || 0} students</div></div>
-              <div style="display:flex;align-items:center;gap:10px"><span class="badge ${data.active ? "active" : "disabled"}">${data.active ? "Active" : "Disabled"}</span>${data.active ? `<button class="danger-btn" data-code="${escapeHtml(data.code || item.id)}" onclick="disableCode(this.dataset.code)">Disable</button>` : ""}</div>
-            </div>`);
-        });
-        list.innerHTML = rows.join("");
-      } catch (error) {
-        console.error(error);
-        list.innerHTML = '<div class="empty">❌ Could not load codes. Check your Firestore rules.</div>';
-      }
-    }
-
-    async function disableCode(code) {
-      if (!currentUser || !confirm("Disable activation code " + code + "? Students will no longer be able to use it.")) return;
-      try {
-        const ref = doc(db, "activationCodes", code);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) return setStatus("⚠️ Code not found.", "error");
-        if (snap.data().teacherId !== currentUser.uid) return setStatus("❌ You can only disable your own codes.", "error");
-        await updateDoc(ref, { active: false, disabledAt: serverTimestamp() });
-        setStatus("✅ Activation code disabled.");
-        await loadMyCodes();
-      } catch (error) {
-        console.error(error);
-        setStatus("❌ Could not disable the code. Check Firestore rules.", "error");
-      }
-    }
-
-    function escapeHtml(value) {
-      return String(value).replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[char]));
-    }
-
-    window.createActivationCode = createActivationCode;
-    window.loadMyCodes = loadMyCodes;
-    window.disableCode = disableCode;
-
-    window.openTool = function(tool) {
-      const messages = {
-        whiteboard: "✏️ Whiteboard will open here.", video: "🎥 Live classroom will open here.", pdf: "📄 PDF uploader will open here.", quiz: "❓ Quiz creator will open here.", poll: "📊 Poll creator will open here.", screen: "🖥️ Screen sharing will start here.", students: "👨‍🎓 Student performance will open here.", leaderboard: "🏆 Leaderboard will open here."
-      };
-      alert(messages[tool] || "Feature coming soon!");
-    };
-    window.refreshStudents = function() { alert("🔄 Student list refreshed!"); };
-
-    onAuthStateChanged(auth, async user => {
-      currentUser = user;
-      if (!user) {
-        $("teacherLabel").textContent = "🔒 Sign in required";
-        $("codeList").innerHTML = '<div class="empty">Please sign in before creating activation codes.</div>';
-        return;
-      }
-      $("teacherLabel").textContent = "👨‍🏫 " + (user.displayName || user.email || "Teacher");
-      await loadMyCodes();
-    });
-  </script>
-</body>
-</html>
+<header class="top"><div class="logo">Vocal<span>Class</span></div><div class="who" id="who">Checking teacher login…</div></header>
+<main class="wrap">
+<section class="hero"><h1>Teacher Dashboard</h1><p>Create a classroom, share its 6-digit code, then start the live class.</p></section>
+<section class="card"><h2>🔑 Create Classroom</h2><p class="muted">Every new classroom gets a unique 6-digit code.</p><div class="row"><input id="className" maxlength="60" placeholder="e.g. Class 8A — Maths"><button class="green" id="create">Create Code</button></div><div id="status" class="status"></div></section>
+<section class="card" id="current" style="display:none"><div class="muted">CURRENT CLASSROOM</div><div id="currentName" style="font-size:20px;font-weight:700;margin-top:5px"></div><div class="code" id="code">------</div><div class="grid"><div class="stat"><span class="muted">Students</span><b id="count">0</b></div><div class="stat"><span class="muted">Status</span><b id="state">Ready</b></div><div class="stat"><span class="muted">Code</span><b id="smallCode">------</b></div></div><div class="row" style="margin-top:18px"><button class="green" id="start">🎥 Start Live Class</button><button class="red" id="disable">Disable Code</button></div></section>
+<section class="card"><h2>👨‍🎓 Students in Current Class</h2><div id="students"><div class="empty">Create a classroom to see students here.</div></div></section>
+</main>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import {getFirestore,doc,getDoc,setDoc,updateDoc,collection,onSnapshot,query,where,getDocs,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+const firebaseConfig={apiKey:"AIzaSyD2WCO8qa17uGaA88x31AT-wSOEbEvAOOI",authDomain:"vocalclass-66f4d.firebaseapp.com",projectId:"vocalclass-66f4d",storageBucket:"vocalclass-66f4d.firebasestorage.app",messagingSenderId:"885399749203",appId:"1:885399749203:web:c38cd8d8c53e1c11cbbca6",measurementId:"G-17Y2R4S565"};
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);let user=null,currentCode=null,unsub=null;
+const $=id=>document.getElementById(id);const msg=(t,ok=true)=>{const e=$("status");e.textContent=t;e.className="status show "+(ok?"ok":"err")};
+function newCode(){return String(Math.floor(100000+Math.random()*900000));}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+async function create(){if(!user)return msg("Please sign in as a teacher first.",false);const name=$("className").value.trim();if(name.length<2)return msg("Enter a classroom name.",false);const b=$("create");b.disabled=true;b.textContent="Creating…";try{let code,ref,snap;do{code=newCode();ref=doc(db,"activationCodes",code);snap=await getDoc(ref)}while(snap.exists());await setDoc(ref,{code,teacherId:user.uid,teacherEmail:user.email||"",classroomName:name,active:true,live:false,studentCount:0,createdAt:serverTimestamp()});currentCode=code;showCurrent(code,name);listen(code);msg("✅ Classroom created. Share the 6-digit code with your students.");$("className").value=""}catch(e){console.error(e);msg("Could not create classroom. Check Firestore rules.",false)}finally{b.disabled=false;b.textContent="Create Code"}}
+function showCurrent(code,name){$("current").style.display="block";$("code").textContent=code;$("smallCode").textContent=code;$("currentName").textContent=name;$("state").textContent="Ready"}
+function listen(code){if(unsub)unsub();const q=collection(db,"classrooms",code,"students");unsub=onSnapshot(q,s=>{let n=0,html="";s.forEach(d=>{const x=d.data();n++;html+=`<div class="student"><div><b>${esc(x.name||"Student")}</b><div class="muted">${x.role==="teacher"?"Teacher":"Student"}</div></div><span class="pill">${x.online===false?"Offline":"Online"}</span></div>`});$("students").innerHTML=html||'<div class="empty">No students have joined yet.</div>';$("count").textContent=n;});}
+async function start(){if(!currentCode)return;try{await updateDoc(doc(db,"activationCodes",currentCode),{active:true,live:true,startedAt:serverTimestamp()});location.href=`classroom.html?role=teacher&code=${currentCode}`}catch(e){console.error(e);msg("Could not start the class.",false)}}
+async function disable(){if(!currentCode)return;if(!confirm("Disable this classroom code? New students will not be able to join."))return;try{await updateDoc(doc(db,"activationCodes",currentCode),{active:false,live:false,disabledAt:serverTimestamp()});$("state").textContent="Disabled";msg("Classroom disabled.")}catch(e){console.error(e);msg("Could not disable the classroom.",false)}}
+async function restore(){if(!user)return;try{const q=query(collection(db,"activationCodes"),where("teacherId","==",user.uid));const s=await getDocs(q);let latest=null; s.forEach(d=>{const x=d.data();if(x.active)latest={code:d.id,...x}});if(latest){currentCode=latest.code;showCurrent(latest.code,latest.classroomName||"Classroom");listen(latest.code)}}catch(e){console.warn(e)}}
+$("create").onclick=create;$("start").onclick=start;$("disable").onclick=disable;
+onAuthStateChanged(auth,async u=>{user=u;if(!u){$("who").textContent="🔒 Teacher sign-in required";$("create").disabled=true;return}$("who").textContent="👨‍🏫 "+(u.displayName||u.email||"Teacher");await restore()});
+</script>
+</body></html>
