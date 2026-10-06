@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VocalClass · Live classroom</title><link rel="stylesheet" href="classroom.css"></head>
+<body>
+<header><a class="brand" href="index.html">Vocal<span>Class</span></a><div class="lesson-title"><h1 id="className">Live classroom</h1><span id="roomStatus" role="status">Checking your classroom…</span></div><button id="copyCode" title="Copy classroom code">Code <strong id="classCode">—</strong></button></header>
+<div id="notice" class="notice" role="alert" hidden></div>
+<section id="lobby" class="lobby" aria-labelledby="lobbyTitle">
+  <div class="preview"><video id="preview" autoplay playsinline muted></video><span>Your camera preview</span></div>
+  <div><p class="eyebrow">LET’S GET READY</p><h2 id="lobbyTitle">Your classroom, connected.</h2><p>Check your camera and microphone before joining. Use headphones for clear, echo-free sound.</p>
+    <label>Your name <input id="displayName" maxlength="40" autocomplete="name" value="Student"></label>
+    <div class="choices"><label><input id="wantCamera" type="checkbox" checked> Camera on</label><label><input id="wantMic" type="checkbox" checked> Microphone on</label></div>
+    <button id="checkDevices">Check camera & microphone</button><p id="deviceStatus" role="status">Your devices are off until you check or join.</p>
+    <button id="join" class="primary" disabled>Join classroom</button><a id="backLink" href="student.html">Back</a>
+  </div>
+</section>
+<main id="classroom" hidden>
+  <div class="workspace">
+    <section class="stage" aria-label="Lesson stage">
+      <div class="section-bar"><div class="tabs"><button id="boardTab" aria-pressed="true">Whiteboard</button><button id="screenTab" aria-pressed="false">Shared screen</button></div><div><button id="downloadBoard">Save board</button><button id="fullscreen">Full screen</button></div></div>
+      <div id="boardTools" class="board-tools" hidden>
+        <label>Tool <select id="tool"><option value="pen">Pen</option><option value="highlighter">Highlighter</option><option value="eraser">Eraser</option><option value="line">Line</option><option value="rect">Rectangle</option><option value="circle">Ellipse</option><option value="text">Text</option></select></label>
+        <label>Color <input id="color" type="color" value="#273858"></label><label>Size <input id="size" type="range" min="1" max="14" value="4"></label><button id="undo">Undo</button><button id="redo">Redo</button><button id="clearBoard">Clear</button>
+      </div>
+      <div id="boardPane" class="board-pane"><canvas id="board" aria-label="Shared lesson whiteboard"></canvas></div>
+      <div id="screenPane" class="screen-pane" hidden><video id="sharedScreen" autoplay playsinline muted></video><p id="screenEmpty">The teacher is not sharing a screen.</p></div>
+      <div class="stage-footer"><span id="boardStatus" role="status">Whiteboard ready</span><span>Learn. Ask. Participate.</span></div>
+    </section>
+    <aside class="class-rail" aria-label="Class videos">
+      <div class="section-bar"><h2>In the classroom</h2><span id="peopleCount">0 students</span></div>
+      <div id="videoGrid" class="video-grid"><article class="video-tile self"><video id="selfVideo" autoplay playsinline muted></video><div class="tile-label"><span>You</span><small id="selfStatus">Camera off</small></div></article></div>
+      <button id="enableSound" class="primary" hidden>Enable classroom sound</button>
+      <p id="connectionHint" class="hint">Waiting for participants.</p>
+    </aside>
+  </div>
+  <section class="interaction" aria-label="Class participation">
+    <article class="panel"><div class="section-bar"><h2>Class chat</h2><span>Ask a question</span></div><div id="messages" class="messages" role="log" aria-live="polite"></div><form id="chatForm"><label class="sr-only" for="chatInput">Message</label><input id="chatInput" maxlength="500" placeholder="Type your question…" required><button class="primary">Send</button></form></article>
+    <article class="panel"><div class="section-bar"><h2>Participants</h2><button id="exportAttendance" hidden>Export attendance</button></div><ul id="people"></ul></article>
+    <article class="panel"><div class="section-bar"><h2>Quiz & poll</h2><span id="activityStatus">No activity yet</span></div>
+      <form id="activityForm" hidden><label>Type <select id="activityType"><option value="poll">Poll</option><option value="quiz">Quiz</option></select></label><label>Question <input id="question" maxlength="200" required></label><label>Option A <input id="optionA" maxlength="80" required></label><label>Option B <input id="optionB" maxlength="80" required></label><label id="correctLabel">Correct answer <select id="correct"><option value="0">A</option><option value="1">B</option></select></label><button class="primary">Launch activity</button></form>
+      <div id="activity"></div><button id="closeActivity" hidden>Close activity & show results</button><div id="results" aria-live="polite"></div>
+    </article>
+  </section>
+  <nav class="controls" aria-label="Call controls"><button id="camera" aria-pressed="false">Camera off</button><button id="mic" aria-pressed="false">Microphone off</button><button id="share" hidden>Share screen / PDF</button><button id="hand" aria-pressed="false" hidden>Raise hand</button><button id="reconnect">Reconnect</button><button id="leave" class="danger">Leave classroom</button></nav>
+</main>
+<noscript><p class="notice">JavaScript is required to join a live classroom.</p></noscript>
+<script type="module" src="classroom-app.js"></script>
+</body></html>

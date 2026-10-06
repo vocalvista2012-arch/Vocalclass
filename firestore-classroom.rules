@@ -1,0 +1,99 @@
+// Integration example, NOT a replacement for existing admin/account rules.
+// Merge these match blocks into the existing database rules, remove overlapping
+// broad allow rules for these paths, and validate in the Firebase Emulator first.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(code) {
+      return signedIn() && get(/databases/$(database)/documents/activationCodes/$(code)).data.teacherId == request.auth.uid;
+    }
+    function activeCode(code) {
+      return signedIn() && get(/databases/$(database)/documents/activationCodes/$(code)).data.active == true;
+    }
+    match /activationCodes/{code} {
+      allow get: if signedIn();
+      // Classroom creation/account/admin policy remains in your existing rules.
+      allow update: if owner(code) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['live']);
+    }
+    match /liveClassrooms/{code} {
+      allow get: if signedIn();
+      allow create, update: if owner(code) && request.resource.data.teacherId == request.auth.uid;
+      match /sessions/{session} {
+        function sessionOwner() {
+          return owner(code) && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)).data.teacherUid == request.auth.uid;
+        }
+        function sessionActive() {
+          let room = get(/databases/$(database)/documents/liveClassrooms/$(code)).data;
+          return activeCode(code) && room.active == true && room.sessionId == session;
+        }
+        function participantOwner(id) {
+          return signedIn() && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/participants/$(id)).data.uid == request.auth.uid;
+        }
+        allow create: if owner(code) && request.resource.data.teacherUid == request.auth.uid;
+        allow get: if sessionActive() || sessionOwner();
+        match /participants/{id} {
+          allow read: if sessionActive() || sessionOwner();
+          allow create: if sessionActive() && request.resource.data.uid == request.auth.uid
+            && request.resource.data.keys().hasOnly(['uid','name','role','online','cameraOn','micOn','handUp','sharing','lastSeen','joinedAt'])
+            && request.resource.data.name is string && request.resource.data.name.size() <= 40
+            && (request.resource.data.role == 'student' || (sessionOwner() && request.resource.data.role == 'teacher'))
+            && request.resource.data.lastSeen == request.time;
+          allow update: if participantOwner(id)
+            && request.resource.data.uid == resource.data.uid && request.resource.data.role == resource.data.role
+            && request.resource.data.name is string && request.resource.data.name.size() <= 40
+            && request.resource.data.lastSeen == request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','online','cameraOn','micOn','handUp','sharing','lastSeen']);
+        }
+        // Call ID is the student's participant ID. Each reconnect gets a new ID.
+        match /calls/{guest} {
+          function canCall() { return sessionActive() && (sessionOwner() || participantOwner(guest)); }
+          allow get: if canCall();
+          allow create: if sessionActive() && sessionOwner()
+            && request.resource.data.teacherUid == request.auth.uid
+            && request.resource.data.studentUid == get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/participants/$(guest)).data.uid;
+          allow update: if canCall()
+            && request.resource.data.teacherUid == resource.data.teacherUid
+            && request.resource.data.studentUid == resource.data.studentUid
+            && ((sessionOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacher']))
+              || (participantOwner(guest) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['student'])));
+          match /teacherCandidates/{candidate} {
+            allow read: if canCall();
+            allow create: if sessionActive() && sessionOwner()
+              && request.resource.data.keys().hasOnly(['revision','candidate']);
+          }
+          match /studentCandidates/{candidate} {
+            allow read: if canCall();
+            allow create: if sessionActive() && participantOwner(guest)
+              && request.resource.data.keys().hasOnly(['revision','candidate']);
+          }
+        }
+        match /state/{state} {
+          allow read: if sessionActive() || sessionOwner();
+          allow create, update: if sessionActive() && sessionOwner() && state in ['board','activity'];
+        }
+        match /messages/{message} {
+          allow read: if sessionActive() || sessionOwner();
+          allow create: if sessionActive() && request.resource.data.keys().hasOnly(['uid','name','text','at'])
+            && request.resource.data.uid == request.auth.uid
+            && request.resource.data.name is string && request.resource.data.name.size() <= 40
+            && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500
+            && request.resource.data.at == request.time;
+        }
+        match /answers/{answer} {
+          // Results are classroom participation data, not private exam records.
+          allow read: if sessionActive() || sessionOwner();
+          allow create: if sessionActive()
+            && request.resource.data.keys().hasOnly(['uid','activityId','name','choice','at'])
+            && request.resource.data.uid == request.auth.uid
+            && answer == request.resource.data.activityId + '_' + request.auth.uid
+            && request.resource.data.name is string && request.resource.data.name.size() <= 40
+            && request.resource.data.choice in [0,1]
+            && request.resource.data.at == request.time
+            && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/state/activity).data.id == request.resource.data.activityId
+            && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/state/activity).data.open == true;
+        }
+      }
+    }
+  }
+}

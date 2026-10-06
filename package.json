@@ -1,0 +1,6 @@
+{
+  "name": "vocalclass",
+  "private": true,
+  "scripts": { "test:classroom": "node tests/classroom.cjs" },
+  "devDependencies": { "playwright": "^1.56.0" }
+}
