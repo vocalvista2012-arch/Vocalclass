@@ -5,6 +5,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
+    function registeredTeacher() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
     function owner(code) {
       return signedIn() && get(/databases/$(database)/documents/activationCodes/$(code)).data.teacherId == request.auth.uid;
     }
@@ -13,8 +16,17 @@ service cloud.firestore {
     }
     match /activationCodes/{code} {
       allow get: if signedIn();
-      // Classroom creation/account/admin policy remains in your existing rules.
-      allow update: if owner(code) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['live']);
+      // Every registered account can create its own classroom; no admin approval.
+      allow create: if registeredTeacher()
+        && request.resource.data.keys().hasOnly(['code','teacherId','teacherEmail','classroomName','active','live','studentCount','createdAt'])
+        && request.resource.data.code == code && code.matches('[0-9]{6}')
+        && request.resource.data.teacherId == request.auth.uid
+        && request.resource.data.teacherEmail == request.auth.token.email
+        && request.resource.data.classroomName is string
+        && request.resource.data.classroomName.size() >= 2 && request.resource.data.classroomName.size() <= 100
+        && request.resource.data.active == true && request.resource.data.live == false
+        && request.resource.data.studentCount == 0 && request.resource.data.createdAt == request.time;
+      allow update: if owner(code) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['live','active']);
     }
     match /liveClassrooms/{code} {
       allow get: if signedIn();
