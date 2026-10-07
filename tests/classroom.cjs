@@ -29,7 +29,8 @@ async function until(fn,message,timeout=18000){const start=Date.now();while(Date
 async function received(page,kind){return page.evaluate(async kind=>{let packets=0;for(const pc of window.testPeers){if(pc.connectionState==='closed')continue;for(const r of (await pc.getStats()).values())if(r.type==='inbound-rtp'&&r.kind===kind)packets+=r.packetsReceived||0;}return packets;},kind);}
 (async()=>{
  await new Promise(resolve=>server.listen(4175,'127.0.0.1',resolve));
- const browser=await chromium.launch({channel:process.env.PLAYWRIGHT_CHANNEL || undefined,headless:true,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--autoplay-policy=no-user-gesture-required']});
+ const browser=await chromium.launch({channel:process.env.PLAYWRIGHT_CHANNEL || undefined,headless:true,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--autoplay-policy=no-user-gesture-required','--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows']});
+ try {
  const pages=[];
  async function create(role,uid,denyMedia=false){
   const context=await browser.newContext({viewport:{width:1440,height:1000},permissions:['camera','microphone']});
@@ -57,6 +58,8 @@ async function received(page,kind){return page.evaluate(async kind=>{let packets
  await teacher.locator('#join').click();await teacher.locator('#classroom').waitFor({state:'visible'});
  const student=await create('student','student-test');
  await student.locator('#displayName').fill('Maya');await student.locator('#join').click();await student.locator('#classroom').waitFor({state:'visible'});
+ await until(()=>[...db.keys()].some(p=>p.startsWith('users/student-test/classHistory/')),'student class history recorded');
+ assert.equal([...db.entries()].find(([p])=>p.startsWith('users/student-test/classHistory/'))[1].teacherId,'teacher-test');
  await until(async()=>await received(student,'audio')>20&&await received(student,'video')>10,'teacher audio and video reach student');
  try { await until(async()=>await received(teacher,'video')>10,'student video reaches teacher'); }
  catch(e) {
@@ -111,6 +114,5 @@ async function received(page,kind){return page.evaluate(async kind=>{let packets
  await teacher.locator('#leave').click();await until(async()=>await student.locator('#roomStatus').innerText().then(t=>t==='Class ended'),'class ends for student');
  assert(await student.evaluate(()=>window.testPeers.every(p=>p.connectionState==='closed')));
  assert.deepEqual(errors,[]);console.log('PASS responsive widths, teacher end propagates, peer cleanup; no page errors');
- await browser.close();server.close();
+ } finally { await browser.close();server.close(); }
 })().catch(e=>{console.error(e);process.exit(1)});
-

@@ -2,7 +2,10 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { auth } from './firebase-config.js';
 
 const $ = id => document.getElementById(id);
-const emailKey = 'vocalclass-teacher-email';
+const role = document.body.dataset.role === 'student' ? 'student' : 'teacher';
+const title = role === 'student' ? 'Student' : 'Teacher';
+const activity = role === 'student' ? 'learning' : 'teaching';
+const emailKey = 'vocalclass-' + role + '-email';
 let busy = false;
 function message(text, type = 'error') { $('message').textContent = text; $('message').className = 'message show ' + type; }
 function errorMessage(error) {
@@ -14,7 +17,7 @@ function errorMessage(error) {
     'auth/invalid-email':'Enter a valid email address.',
     'auth/weak-password':'Choose a stronger password with at least 6 characters.',
     'auth/password-does-not-meet-requirements':'This password does not meet the account password requirements. Choose a stronger password.',
-    'auth/operation-not-allowed':'Teacher registration is temporarily unavailable. Email/password sign-in needs to be enabled for this website.',
+    'auth/operation-not-allowed':'Account registration is temporarily unavailable. Email/password sign-in needs to be enabled for this website.',
     'auth/too-many-requests':'Too many attempts. Wait a little and try again.',
     'auth/network-request-failed':'Could not connect. Check your internet connection and try again.',
     'auth/user-disabled':'This account is disabled. Use another account or contact support.',
@@ -61,7 +64,7 @@ async function persistence(prefix) {
 onAuthStateChanged(auth, user => {
   // An anonymous student session is not a registered teacher account.
   // Signup fires this callback before updateProfile has finished.
-  if (user && !user.isAnonymous && !busy) location.replace('teacher.html');
+  if (user && !user.isAnonymous && !busy) location.replace(role+'.html');
 });
 $('loginForm').onsubmit = async event => {
   event.preventDefault(); if (busy) return;
@@ -73,9 +76,9 @@ $('loginForm').onsubmit = async event => {
     await persistence('login');
     await signInWithEmailAndPassword(auth,email,password);
     remember(email,saveEmail); $('loginPassword').value = '';
-    location.replace('teacher.html');
+    location.replace(role+'.html');
   } catch(error) { message(errorMessage(error)); }
-  finally { lock(false); $('loginBtn').textContent = 'Login as Teacher →'; }
+  finally { lock(false); $('loginBtn').textContent = 'Login as '+title+' →'; }
 };
 $('signupForm').onsubmit = async event => {
   event.preventDefault(); if (busy) return;
@@ -92,14 +95,14 @@ $('signupForm').onsubmit = async event => {
     $('signupPassword').value = ''; $('signupConfirm').value = '';
     try { await updateProfile(result.user,{displayName:name}); }
     catch {
-      message('Your account is ready, but your display name could not be saved. You can still start teaching.','success');
+      message('Your account is ready, but your display name could not be saved. You can still open your dashboard.','success');
       $('continueTeaching').hidden = false;
       return;
     }
     // No approval document, admin role, or email-verification gate is required.
-    location.replace('teacher.html');
+    location.replace(role+'.html');
   } catch(error) { message(errorMessage(error)); }
-  finally { lock(false); $('signupBtn').textContent = 'Create account & start teaching'; }
+  finally { lock(false); $('signupBtn').textContent = 'Create account & start '+activity; }
 };
 $('forgotBtn').onclick = async () => {
   if (busy) return;

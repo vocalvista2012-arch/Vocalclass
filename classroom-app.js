@@ -184,6 +184,9 @@ async function join() {
     participantPath=`${sessionPath}/participants/${participantId}`;
     await store.write(participantPath,{...presence(),joinedAt:store.timestamp()});
     joined=true;stopped=false;
+    if(!teacher)store.write(`users/${user.uid}/classHistory/${code}_${sessionId}`,{
+      code,sessionId,classroomName:activation.classroomName||'Classroom',teacherId:activation.teacherId,lastJoinedAt:store.timestamp()
+    }).catch(()=>report(Error('You joined the classroom, but your class history could not be saved. Check dashboard permissions.')));
     $('lobby').hidden=true;$('classroom').hidden=false;
     for(const id of ['boardTools','share','activityForm','exportAttendance'])$(id).hidden=!teacher;
     $('hand').hidden=teacher;$('leave').textContent=teacher?'End class for everyone':'Leave classroom';
@@ -303,6 +306,8 @@ async function initialize(){
   user=await store.authenticate(role);activation=await store.read(`activationCodes/${code}`);
   if(!activation?.active)throw Error('This classroom code is invalid or disabled.');
   if(teacher&&activation.teacherId!==user.uid)throw Error('This classroom belongs to another teacher.');
+  const profile=await store.read(`users/${user.uid}/profiles/${role}`).catch(()=>null);
+  $('displayName').value=(profile?.displayName||user.name||role).slice(0,40);
   $('className').textContent=activation.classroomName||'Live classroom';$('join').disabled=false;status(teacher?'Teacher device check':'Student device check');
 }
 initialize().catch(report);

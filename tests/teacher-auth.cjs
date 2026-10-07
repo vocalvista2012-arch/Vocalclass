@@ -41,6 +41,8 @@ export async function sendPasswordResetEmail(){window.events.push('reset');}
  await page.evaluate(()=>window.fail='duplicate');await page.locator('#signupBtn').click();assert((await page.locator('#message').innerText()).includes('already has an account'));
  await page.evaluate(()=>window.fail='profile');await page.locator('#signupBtn').click();await page.locator('#continueTeaching').waitFor({state:'visible'});assert((await page.locator('#message').innerText()).includes('Your account is ready'));
  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
+ await context.route('**/student.html',r=>r.fulfill({contentType:'text/html',body:'Student Dashboard'}));
+ await page.goto('http://127.0.0.1:4176/student-login.html');await page.locator('#showSignup').click();await page.locator('#signupName').fill('Test Student');await page.locator('#signupEmail').fill('student@example.test');await page.locator('#signupPassword').fill('SamplePass123!');await page.locator('#signupConfirm').fill('SamplePass123!');await page.locator('#signupBtn').click();await page.waitForURL('**/student.html');assert.equal(await page.evaluate(()=>localStorage.getItem('vocalclass-student-email')),'student@example.test');
  assert.deepEqual(errors,[]);
  console.log('PASS anonymous sessions stay on signup; confirmation validation; profile completes before redirect; remembered email and opt-out; no saved passwords; session/local persistence; duplicate account, reset and profile-failure recovery; mobile widths.');
  await browser.close();server.close();

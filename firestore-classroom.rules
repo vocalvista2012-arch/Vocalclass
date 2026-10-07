@@ -1,6 +1,5 @@
-// Integration example, NOT a replacement for existing admin/account rules.
-// Merge these match blocks into the existing database rules, remove overlapping
-// broad allow rules for these paths, and validate in the Firebase Emulator first.
+// Complete rules for the current VocalClass app and its legacy classroom paths.
+// Replaces the rules supplied by the site owner; no administrator approval is required.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -14,8 +13,37 @@ service cloud.firestore {
     function activeCode(code) {
       return signedIn() && get(/databases/$(database)/documents/activationCodes/$(code)).data.active == true;
     }
+    match /users/{uid}/profiles/{role} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow create, update: if registeredTeacher() && request.auth.uid == uid
+        && role in ['teacher', 'student']
+        && request.resource.data.keys().hasOnly(['displayName','bio','subject','accent','photo','updatedAt'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 2 && request.resource.data.displayName.size() <= 40
+        && request.resource.data.bio is string && request.resource.data.bio.size() <= 240
+        && request.resource.data.subject is string && request.resource.data.subject.size() <= 80
+        && request.resource.data.accent in ['violet','cyan','rose']
+        && request.resource.data.photo is string && request.resource.data.photo.size() <= 120000
+        && (request.resource.data.photo == '' || request.resource.data.photo.matches('data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+'))
+        && request.resource.data.updatedAt == request.time;
+    }
+    match /users/{uid}/classHistory/{visit} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if registeredTeacher() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['code','sessionId','classroomName','teacherId','lastJoinedAt'])
+        && request.resource.data.code is string && request.resource.data.code.matches('[0-9]{6}')
+        && request.resource.data.sessionId is string && request.resource.data.sessionId.size() <= 100
+        && visit == request.resource.data.code + '_' + request.resource.data.sessionId
+        && request.resource.data.classroomName is string && request.resource.data.classroomName.size() <= 100
+        && request.resource.data.teacherId == get(/databases/$(database)/documents/liveClassrooms/$(request.resource.data.code)/sessions/$(request.resource.data.sessionId)).data.teacherUid
+        && activeCode(request.resource.data.code)
+        && get(/databases/$(database)/documents/liveClassrooms/$(request.resource.data.code)).data.active == true
+        && get(/databases/$(database)/documents/liveClassrooms/$(request.resource.data.code)).data.sessionId == request.resource.data.sessionId
+        && request.resource.data.lastJoinedAt == request.time;
+    }
     match /activationCodes/{code} {
-      allow get: if signedIn();
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/activationCodes/$(code)) || resource.data.active == true || resource.data.teacherId == request.auth.uid);
+      allow list: if signedIn() && resource.data.teacherId == request.auth.uid;
       // Every registered account can create its own classroom; no admin approval.
       allow create: if registeredTeacher()
         && request.resource.data.keys().hasOnly(['code','teacherId','teacherEmail','classroomName','active','live','studentCount','createdAt'])
@@ -26,11 +54,39 @@ service cloud.firestore {
         && request.resource.data.classroomName.size() >= 2 && request.resource.data.classroomName.size() <= 100
         && request.resource.data.active == true && request.resource.data.live == false
         && request.resource.data.studentCount == 0 && request.resource.data.createdAt == request.time;
-      allow update: if owner(code) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['live','active']);
+      allow update: if owner(code) && request.resource.data.teacherId == resource.data.teacherId
+        && request.resource.data.code == resource.data.code;
+      allow delete: if owner(code);
+    }
+    // Existing classroom roster used by the teacher dashboard.
+    match /classrooms/{classCode} {
+      allow get: if activeCode(classCode) || owner(classCode);
+      allow list: if false;
+      allow create: if owner(classCode) && request.resource.data.teacherId == request.auth.uid;
+      allow update: if owner(classCode) && request.resource.data.teacherId == resource.data.teacherId;
+      match /students/{studentId} {
+        allow get, list: if activeCode(classCode) || owner(classCode);
+        allow create: if activeCode(classCode) && request.auth.uid == studentId
+          && request.resource.data.role == 'student' && request.resource.data.name is string;
+        allow update, delete: if signedIn() && request.auth.uid == studentId;
+      }
     }
     match /liveClassrooms/{code} {
-      allow get: if signedIn();
+      // Allow reading an absent room before the teacher creates it.
+      allow get: if activeCode(code) || owner(code);
       allow create, update: if owner(code) && request.resource.data.teacherId == request.auth.uid;
+      allow list: if false;
+      // Keep old classroom pages compatible during deployment.
+      match /participants/{userId} {
+        allow get, list: if activeCode(code) || owner(code);
+        allow create: if activeCode(code) && request.auth.uid == userId
+          && request.resource.data.name is string;
+        allow update, delete: if signedIn() && request.auth.uid == userId;
+      }
+      match /signals/{fromUser}/{toUser}/{document=**} {
+        allow read, write: if activeCode(code);
+      }
+      // New classroom engine: each lesson has its own session subtree.
       match /sessions/{session} {
         function sessionOwner() {
           return owner(code) && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)).data.teacherUid == request.auth.uid;
