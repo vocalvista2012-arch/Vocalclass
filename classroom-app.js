@@ -3,6 +3,7 @@ import { quizAPI } from './quiz-api.js';
 import { LessonPresentation } from './classroom-presentation.js';
 import { store } from './classroom-store.js';
 import { ClassroomPeer } from './classroom-rtc.js';
+import { createSignal } from './classroom-signaling.js';
 import { ClassroomBoard } from './classroom-board.js';
 import { classroomConfig as config } from './classroom-config.js';
 
@@ -101,9 +102,8 @@ function currentPeople() {return people.filter(p=>p.online!==false&&(!p.lastSeen
 function initiates(remote){return teacher || (remote.role!=='teacher' && participantId.localeCompare(remote.id)<0);}
 function signalFor(remote) {
  const initiator=initiates(remote),a=initiator?participantId:remote.id,b=initiator?remote.id:participantId;
- const call=`${sessionPath}/peerCalls/${a}__${b}`,side=initiator?'a':'b',other=initiator?'b':'a';
- const ready=initiator?store.write(call,{fromId:a,toId:b,fromUid:user.uid,toUid:remote.uid},true):Promise.resolve();
- return {description:async message=>{await ready;return store.write(call,{[side]:message},true);},candidate:async message=>{await ready;return store.add(`${call}/${side}Candidates`,message);},watchDescription:(next,error)=>store.watch(call,d=>{if(d?.[other])next(d[other]);},error),watchCandidates:(next,error)=>store.list(`${call}/${other}Candidates`,docs=>docs.forEach(d=>next(d.id,d)),error)};
+ const call=`${sessionPath}/peerCalls/${a}__${b}`;
+ return createSignal(store,{call,initiator,fromId:a,toId:b,uid:user.uid,remoteUid:remote.uid});
 }
 function tileFor(person) {
   if(tiles.has(person.id)) return tiles.get(person.id);
