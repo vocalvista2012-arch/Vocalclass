@@ -8,10 +8,11 @@ export class LiveQuiz {
   Object.assign(this,{code,sessionId,uid,teacher,report});this.off=[];this.state=null;this.answer=null;this.offset=0;this.clockReady=false;this.answerOff=null;
   this.panel=document.getElementById('quizPanel');this.stage=document.getElementById('quizStage');this.controls=document.getElementById('quizControls');this.result=document.getElementById('publicLeaderboard');this.base=`liveClassrooms/${code}/sessions/${sessionId}`;
   this.off.push(api.watch(`${this.base}/state/quiz`,q=>this.receive(q),report),api.watch(`${this.base}/state/leaderboard`,s=>this.leaderboard(s),report),api.watch(`${this.base}/state/badges`,s=>this.publicBadges(s),report));
-  if(teacher)this.buildControls();else this.controls.hidden=true;
-  this.syncClock();this.clockTimer=setInterval(()=>this.syncClock(),30000);this.timer=setInterval(()=>this.tick(),100);
+  if(teacher){this.buildControls();this.controls.append(el('p','Free plan: keep this teacher tab open for quiz timing and grading.'));this.grader=setInterval(()=>this.gradeExpired(),1000);}else this.controls.hidden=true;
+  this.syncClock();this.clockTimer=setInterval(()=>this.syncClock(),300000);this.timer=setInterval(()=>this.tick(),100);
  }
  async syncClock(){try{const start=Date.now(),s=await api.call('quizClock',{});this.offset=s.now-(start+Date.now())/2;this.clockReady=true;this.tick();}catch(e){this.report(e);}}
+ async gradeExpired(){const q=this.state;if(this.grading||!this.clockReady||!q||!(q.status==='grading'||q.status==='running'&&Date.now()+this.offset>=q.endsAt))return;this.grading=true;try{await api.call('expireQuiz',{code:this.code,sessionId:this.sessionId,roundId:q.roundId});}catch(e){this.report(e);}finally{this.grading=false;}}
  call(action,extra={}){return api.call('quizAction',{code:this.code,sessionId:this.sessionId,action,expectedRoundId:this.state?.roundId||null,...extra});}
  button(text,action,extra={}){const b=el('button',text);b.type='button';b.onclick=async()=>{b.disabled=true;try{await this.call(action,typeof extra==='function'?extra():extra);}catch(e){this.report(e);}finally{b.disabled=false;}};return b;}
  buildControls(){
@@ -38,5 +39,5 @@ export class LiveQuiz {
  async submit(choice){if(this.sending)return;this.sending=true;const roundId=this.state.roundId;this.tick();try{const result=await api.call('submitQuizAnswer',{code:this.code,sessionId:this.sessionId,roundId,choice});if(this.state?.roundId===roundId){this.answer=result;this.render();}}catch(e){this.report(e);}finally{this.sending=false;this.tick();}}
  leaderboard(s){this.result.replaceChildren();this.result.hidden=!s?.visible;if(!s?.visible)return;this.result.append(el('h2','🏆 Class leaderboard'));this.result.append(table(['Rank','Student','Correct answers','Quiz played','Points'],(s.rows||[]).map((r,i)=>[i+1,r.name,r.correct,r.played,r.points])));}
  publicBadges(s){const area=document.getElementById('publicBadges');area.replaceChildren();area.hidden=!s?.visible;if(s?.visible){area.append(el('h3','Class achievements'));for(const r of s.rows||[])area.append(el('p',r.name+' · '+r.badge));}}
- destroy(){this.off.forEach(f=>f());this.answerOff?.();clearInterval(this.timer);clearInterval(this.clockTimer);this.controls.replaceChildren();this.panel.replaceChildren();this.stage.replaceChildren();}
+ destroy(){this.off.forEach(f=>f());this.answerOff?.();clearInterval(this.timer);clearInterval(this.clockTimer);clearInterval(this.grader);this.controls.replaceChildren();this.panel.replaceChildren();this.stage.replaceChildren();}
 }

@@ -1,4 +1,6 @@
-# VocalClass classroom and quiz upgrade
+# Archived paid-service implementation
+
+**Superseded by [FREE-PLAN.md](FREE-PLAN.md).** The current website uses Firestore and the teacher's browser; Cloud Functions, Cloud Tasks, Storage and the converter below are not deployed or required. The remaining text documents the earlier implementation only.
 
 This release adds the new classroom UI, a private quiz bank, server-controlled quiz timing and grading, teacher permission controls, and synchronized lesson documents. It is branded VocalClass powered by VocalVista. GitHub Pages serves the UI; the services below must be deployed separately. Publishing Firestore rules alone is not sufficient for this release.
 

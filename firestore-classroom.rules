@@ -13,12 +13,24 @@ service cloud.firestore {
     function activeCode(code) {
       return signedIn() && get(/databases/$(database)/documents/activationCodes/$(code)).data.active == true;
     }
-    // Quiz banks contain private answer keys. Only trusted functions write them.
+    // Free-plan quiz banks: private to their author.
+    match /users/{uid}/clock/{clock} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
+    }
     match /users/{uid}/quizzes/{quiz} {
       allow read, delete: if registeredTeacher() && request.auth.uid == uid;
+      allow create, update: if registeredTeacher() && request.auth.uid == uid
+        && request.resource.data.title is string && request.resource.data.title.size() <= 100
+        && request.resource.data.questions is list && request.resource.data.questions.size() > 0
+        && request.resource.data.questions.size() <= 30;
     }
     match /users/{uid}/achievements/{badge} {
       allow read: if signedIn() && request.auth.uid == uid;
+      allow read: if owner(resource.data.code);
+      allow create: if owner(request.resource.data.code);
+      allow update: if owner(resource.data.code) && request.resource.data.code == resource.data.code;
     }
     match /users/{uid}/profiles/{role} {
       allow get: if signedIn() && request.auth.uid == uid;
@@ -81,6 +93,7 @@ service cloud.firestore {
     match /liveClassrooms/{code} {
       match /quizScores/{uid} {
         allow read: if owner(code);
+        allow create, update: if owner(code) && request.resource.data.uid == uid;
       }
       // Allow reading an absent room before the teacher creates it.
       allow get: if activeCode(code) || owner(code);
@@ -127,17 +140,35 @@ service cloud.firestore {
         }
         match /permissions/{uid} {
           allow read: if sessionActive() || sessionOwner() || (signedIn() && uid == request.auth.uid);
+          allow create, update: if sessionOwner();
         }
         match /quizRuns/{run} {
           allow read: if sessionOwner();
+          allow create, update: if sessionOwner();
         }
+        match /teacherAwards/{award} { allow read, write: if sessionOwner(); }
         match /quizRounds/{round} {
           allow read: if sessionOwner();
+          allow create, update: if sessionOwner();
           match /answers/{uid} {
             allow get: if sessionOwner() || (sessionActive() && request.auth.uid == uid);
             allow list: if sessionOwner();
+            function validAnswer() {
+              let q = get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/state/quiz).data;
+              let a = request.resource.data;
+              return sessionActive() && request.auth.uid == uid && !sessionOwner()
+                && q.roundId == round && q.status == 'running'
+                && request.time.toMillis() >= q.startedAt && request.time.toMillis() < q.endsAt
+                && a.keys().hasOnly(['choice','responseMs','submittedAt','segmentStart','elapsedBefore','uid','name'])
+                && a.uid == uid && a.choice is int && a.choice >= 0 && a.choice <= 3
+                && a.name is string && a.name.size() <= 40 && a.submittedAt == request.time
+                && a.segmentStart == q.startedAt && a.elapsedBefore == q.elapsedMs;
+            }
+            allow create: if validAnswer();
+            allow update: if validAnswer()
+              && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/state/quiz).data.allowChange == true;
           }
-          match /awards/{uid} { allow read: if sessionOwner(); }
+          match /awards/{uid} { allow read, write: if sessionOwner(); }
         }
         match /pointers/{uid} {
           allow read: if sessionActive() || sessionOwner();
@@ -198,7 +229,22 @@ service cloud.firestore {
         }
         match /state/{state} {
           allow read: if sessionActive() || sessionOwner();
-          allow create, update: if sessionActive() && sessionOwner() && state in ['board','activity'];
+          allow create, update: if sessionActive() && sessionOwner()
+            && state in ['board','activity','quiz','leaderboard','badges','shareOwner','presentation'];
+          allow create, update: if sessionActive() && state == 'shareOwner'
+            && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid
+            && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid)).data.screenShare == true;
+          function drawingAllowed() {
+            return sessionActive() && state == 'board'
+              && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid)).data.whiteboard == true
+              && request.resource.data.keys().hasOnly(['strokes','revision','updatedAt'])
+              && request.resource.data.strokes is list && request.resource.data.strokes.size() <= 180;
+          }
+          allow create: if drawingAllowed() && request.resource.data.strokes.size() == 1 && request.resource.data.revision == 1;
+          allow update: if drawingAllowed()
+            && request.resource.data.revision == resource.data.get('revision',0) + 1
+            && request.resource.data.strokes.size() == resource.data.strokes.size() + 1
+            && request.resource.data.strokes == resource.data.strokes.concat([request.resource.data.strokes[resource.data.strokes.size()]]);
         }
         match /messages/{message} {
           allow read: if sessionActive() || sessionOwner();

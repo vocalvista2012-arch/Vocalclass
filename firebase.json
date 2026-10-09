@@ -1,1 +1,1 @@
-{"functions":[{"source":"functions","codebase":"vocalclass"}],"firestore":{"rules":"firestore-classroom.rules"},"storage":{"rules":"storage.rules"},"emulators":{"functions":{"port":5001},"firestore":{"port":8085},"auth":{"port":9099},"storage":{"port":9199},"ui":{"enabled":true}}}
+{"firestore":{"rules":"firestore-classroom.rules"},"emulators":{"firestore":{"port":8085},"auth":{"port":9099},"ui":{"enabled":false}}}
