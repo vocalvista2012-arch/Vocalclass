@@ -1,0 +1,273 @@
+// Complete rules for the current VocalClass app and its legacy classroom paths.
+// Replaces the rules supplied by the site owner; no administrator approval is required.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function registeredTeacher() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function owner(code) {
+      return signedIn() && get(/databases/$(database)/documents/activationCodes/$(code)).data.teacherId == request.auth.uid;
+    }
+    function activeCode(code) {
+      return signedIn() && get(/databases/$(database)/documents/activationCodes/$(code)).data.active == true;
+    }
+    // Free-plan quiz banks: private to their author.
+    match /users/{uid}/clock/{clock} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
+    }
+    match /users/{uid}/quizzes/{quiz} {
+      allow read, delete: if registeredTeacher() && request.auth.uid == uid;
+      allow create, update: if registeredTeacher() && request.auth.uid == uid
+        && request.resource.data.title is string && request.resource.data.title.size() <= 100
+        && request.resource.data.questions is list && request.resource.data.questions.size() > 0
+        && request.resource.data.questions.size() <= 30;
+    }
+    match /users/{uid}/achievements/{badge} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow read: if owner(resource.data.code);
+      allow create: if owner(request.resource.data.code);
+      allow update: if owner(resource.data.code) && request.resource.data.code == resource.data.code;
+    }
+    match /users/{uid}/profiles/{role} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow create, update: if registeredTeacher() && request.auth.uid == uid
+        && role in ['teacher', 'student']
+        && request.resource.data.keys().hasOnly(['displayName','bio','subject','accent','photo','updatedAt'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 2 && request.resource.data.displayName.size() <= 40
+        && request.resource.data.bio is string && request.resource.data.bio.size() <= 240
+        && request.resource.data.subject is string && request.resource.data.subject.size() <= 80
+        && request.resource.data.accent in ['violet','cyan','rose']
+        && request.resource.data.photo is string && request.resource.data.photo.size() <= 120000
+        && (request.resource.data.photo == '' || request.resource.data.photo.matches('data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+'))
+        && request.resource.data.updatedAt == request.time;
+    }
+    match /users/{uid}/classHistory/{visit} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if registeredTeacher() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['code','sessionId','classroomName','teacherId','lastJoinedAt'])
+        && request.resource.data.code is string && request.resource.data.code.matches('[0-9]{6}')
+        && request.resource.data.sessionId is string && request.resource.data.sessionId.size() <= 100
+        && visit == request.resource.data.code + '_' + request.resource.data.sessionId
+        && request.resource.data.classroomName is string && request.resource.data.classroomName.size() <= 100
+        && request.resource.data.teacherId == get(/databases/$(database)/documents/liveClassrooms/$(request.resource.data.code)/sessions/$(request.resource.data.sessionId)).data.teacherUid
+        && activeCode(request.resource.data.code)
+        && get(/databases/$(database)/documents/liveClassrooms/$(request.resource.data.code)).data.active == true
+        && get(/databases/$(database)/documents/liveClassrooms/$(request.resource.data.code)).data.sessionId == request.resource.data.sessionId
+        && request.resource.data.lastJoinedAt == request.time;
+    }
+    match /activationCodes/{code} {
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/activationCodes/$(code)) || resource.data.active == true || resource.data.teacherId == request.auth.uid);
+      allow list: if signedIn() && resource.data.teacherId == request.auth.uid;
+      // Every registered account can create its own classroom; no admin approval.
+      allow create: if registeredTeacher()
+        && request.resource.data.keys().hasOnly(['code','teacherId','teacherEmail','classroomName','active','live','studentCount','createdAt'])
+        && request.resource.data.code == code && code.matches('[0-9]{6}')
+        && request.resource.data.teacherId == request.auth.uid
+        && request.resource.data.teacherEmail == request.auth.token.email
+        && request.resource.data.classroomName is string
+        && request.resource.data.classroomName.size() >= 2 && request.resource.data.classroomName.size() <= 100
+        && request.resource.data.active == true && request.resource.data.live == false
+        && request.resource.data.studentCount == 0 && request.resource.data.createdAt == request.time;
+      allow update: if owner(code) && request.resource.data.teacherId == resource.data.teacherId
+        && request.resource.data.code == resource.data.code;
+      allow delete: if owner(code);
+    }
+    // Existing classroom roster used by the teacher dashboard.
+    match /classrooms/{classCode} {
+      allow get: if activeCode(classCode) || owner(classCode);
+      allow list: if false;
+      allow create: if owner(classCode) && request.resource.data.teacherId == request.auth.uid;
+      allow update: if owner(classCode) && request.resource.data.teacherId == resource.data.teacherId;
+      match /students/{studentId} {
+        allow get, list: if activeCode(classCode) || owner(classCode);
+        allow create: if activeCode(classCode) && request.auth.uid == studentId
+          && request.resource.data.role == 'student' && request.resource.data.name is string;
+        allow update, delete: if signedIn() && request.auth.uid == studentId;
+      }
+    }
+    match /liveClassrooms/{code} {
+      match /quizScores/{uid} {
+        allow read: if owner(code);
+        allow create, update: if owner(code) && request.resource.data.uid == uid;
+      }
+      // Allow reading an absent room before the teacher creates it.
+      allow get: if activeCode(code) || owner(code);
+      allow create, update: if owner(code) && request.resource.data.teacherId == request.auth.uid;
+      allow list: if false;
+      // Keep old classroom pages compatible during deployment.
+      match /participants/{userId} {
+        allow get, list: if activeCode(code) || owner(code);
+        allow create: if activeCode(code) && request.auth.uid == userId
+          && request.resource.data.name is string;
+        allow update, delete: if signedIn() && request.auth.uid == userId;
+      }
+      match /signals/{fromUser}/{toUser}/{document=**} {
+        allow read, write: if activeCode(code);
+      }
+      // New classroom engine: each lesson has its own session subtree.
+      match /sessions/{session} {
+        function sessionOwner() {
+          return owner(code) && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)).data.teacherUid == request.auth.uid;
+        }
+        function sessionActive() {
+          let room = get(/databases/$(database)/documents/liveClassrooms/$(code)).data;
+          return activeCode(code) && room.active == true && room.sessionId == session
+            && (!exists(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid))
+              || get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid)).data.get('removed', false) == false);
+        }
+        function participantOwner(id) {
+          return signedIn() && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/participants/$(id)).data.uid == request.auth.uid;
+        }
+        allow create: if owner(code) && request.resource.data.teacherUid == request.auth.uid;
+        allow get: if sessionActive() || sessionOwner();
+        match /participants/{id} {
+          allow read: if sessionActive() || sessionOwner();
+          allow create: if sessionActive() && request.resource.data.uid == request.auth.uid
+            && request.resource.data.keys().hasOnly(['uid','name','role','online','cameraOn','micOn','handUp','sharing','lastSeen','joinedAt'])
+            && request.resource.data.name is string && request.resource.data.name.size() <= 40
+            && (request.resource.data.role == 'student' || (sessionOwner() && request.resource.data.role == 'teacher'))
+            && request.resource.data.lastSeen == request.time;
+          allow update: if participantOwner(id)
+            && request.resource.data.uid == resource.data.uid && request.resource.data.role == resource.data.role
+            && request.resource.data.name is string && request.resource.data.name.size() <= 40
+            && request.resource.data.lastSeen == request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','online','cameraOn','micOn','handUp','sharing','lastSeen']);
+        }
+        match /permissions/{uid} {
+          allow read: if sessionActive() || sessionOwner() || (signedIn() && uid == request.auth.uid);
+          allow create, update: if sessionOwner();
+        }
+        match /quizRuns/{run} {
+          allow read: if sessionOwner();
+          allow create, update: if sessionOwner();
+        }
+        match /teacherAwards/{award} { allow read, write: if sessionOwner(); }
+        match /quizRounds/{round} {
+          allow read: if sessionOwner();
+          allow create, update: if sessionOwner();
+          match /answers/{uid} {
+            allow get: if sessionOwner() || (sessionActive() && request.auth.uid == uid);
+            allow list: if sessionOwner();
+            function validAnswer() {
+              let q = get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/state/quiz).data;
+              let a = request.resource.data;
+              return sessionActive() && request.auth.uid == uid && !sessionOwner()
+                && q.roundId == round && q.status == 'running'
+                && request.time.toMillis() >= q.startedAt && request.time.toMillis() < q.endsAt
+                && a.keys().hasOnly(['choice','responseMs','submittedAt','segmentStart','elapsedBefore','uid','name'])
+                && a.uid == uid && a.choice is int && a.choice >= 0 && a.choice <= 3
+                && a.name is string && a.name.size() <= 40 && a.submittedAt == request.time
+                && a.segmentStart == q.startedAt && a.elapsedBefore == q.elapsedMs;
+            }
+            allow create: if validAnswer();
+            allow update: if validAnswer()
+              && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/state/quiz).data.allowChange == true;
+          }
+          match /awards/{uid} { allow read, write: if sessionOwner(); }
+        }
+        match /pointers/{uid} {
+          allow read: if sessionActive() || sessionOwner();
+          allow create, update: if sessionActive() && request.auth.uid == uid
+            && (sessionOwner() || get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(uid)).data.whiteboard == true)
+            && request.resource.data.keys().hasOnly(['points','at'])
+            && request.resource.data.points is list && request.resource.data.points.size() == 2
+            && request.resource.data.points[0] is number && request.resource.data.points[0] >= 0 && request.resource.data.points[0] <= 1600
+            && request.resource.data.points[1] is number && request.resource.data.points[1] >= 0 && request.resource.data.points[1] <= 900
+            && request.resource.data.at is number;
+        }
+        // Pair-scoped mesh signaling: each peer may write only its own description/candidates.
+        match /peerCalls/{pair} {
+          function pairMember() { let p = get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/peerCalls/$(pair)).data; return request.auth.uid == p.fromUid || request.auth.uid == p.toUid; }
+          allow get: if sessionActive() && (!exists(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/peerCalls/$(pair)) || pairMember());
+          allow create: if sessionActive()
+            && request.resource.data.keys().hasOnly(['fromId','toId','fromUid','toUid'])
+            && participantOwner(request.resource.data.fromId)
+            && request.resource.data.fromUid == request.auth.uid
+            && request.resource.data.toUid == get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/participants/$(request.resource.data.toId)).data.uid
+            && pair == request.resource.data.fromId + '__' + request.resource.data.toId;
+          allow update: if sessionActive() && pairMember()
+            && ((request.auth.uid == resource.data.fromUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['a']))
+              || (request.auth.uid == resource.data.toUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['b'])));
+          match /aCandidates/{candidate} {
+            allow read: if sessionActive() && pairMember();
+            allow create: if sessionActive() && request.auth.uid == get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/peerCalls/$(pair)).data.fromUid
+              && request.resource.data.keys().hasOnly(['revision','candidate']);
+          }
+          match /bCandidates/{candidate} {
+            allow read: if sessionActive() && pairMember();
+            allow create: if sessionActive() && request.auth.uid == get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/peerCalls/$(pair)).data.toUid
+              && request.resource.data.keys().hasOnly(['revision','candidate']);
+          }
+        }
+        // Call ID is the student's participant ID. Each reconnect gets a new ID.
+        match /calls/{guest} {
+          function canCall() { return sessionActive() && (sessionOwner() || participantOwner(guest)); }
+          allow get: if canCall();
+          allow create: if sessionActive() && sessionOwner()
+            && request.resource.data.teacherUid == request.auth.uid
+            && request.resource.data.studentUid == get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/participants/$(guest)).data.uid;
+          allow update: if canCall()
+            && request.resource.data.teacherUid == resource.data.teacherUid
+            && request.resource.data.studentUid == resource.data.studentUid
+            && ((sessionOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacher']))
+              || (participantOwner(guest) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['student'])));
+          match /teacherCandidates/{candidate} {
+            allow read: if canCall();
+            allow create: if sessionActive() && sessionOwner()
+              && request.resource.data.keys().hasOnly(['revision','candidate']);
+          }
+          match /studentCandidates/{candidate} {
+            allow read: if canCall();
+            allow create: if sessionActive() && participantOwner(guest)
+              && request.resource.data.keys().hasOnly(['revision','candidate']);
+          }
+        }
+        match /state/{state} {
+          allow read: if sessionActive() || sessionOwner();
+          allow create, update: if sessionActive() && sessionOwner()
+            && state in ['board','activity','quiz','leaderboard','badges','shareOwner','presentation'];
+          allow create, update: if sessionActive() && state == 'shareOwner'
+            && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid
+            && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid)).data.screenShare == true;
+          function drawingAllowed() {
+            return sessionActive() && state == 'board'
+              && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid)).data.whiteboard == true
+              && request.resource.data.keys().hasOnly(['strokes','revision','updatedAt'])
+              && request.resource.data.strokes is list && request.resource.data.strokes.size() <= 180;
+          }
+          allow create: if drawingAllowed() && request.resource.data.strokes.size() == 1 && request.resource.data.revision == 1;
+          allow update: if drawingAllowed()
+            && request.resource.data.revision == resource.data.get('revision',0) + 1
+            && request.resource.data.strokes.size() == resource.data.strokes.size() + 1
+            && request.resource.data.strokes == resource.data.strokes.concat([request.resource.data.strokes[resource.data.strokes.size()]]);
+        }
+        match /messages/{message} {
+          allow read: if sessionActive() || sessionOwner();
+          allow create: if sessionActive() && request.resource.data.keys().hasOnly(['uid','name','text','at'])
+            && request.resource.data.uid == request.auth.uid
+            && request.resource.data.name is string && request.resource.data.name.size() <= 40
+            && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500
+            && request.resource.data.at == request.time;
+        }
+        match /answers/{answer} {
+          // Results are classroom participation data, not private exam records.
+          allow read: if sessionActive() || sessionOwner();
+          allow create: if sessionActive()
+            && request.resource.data.keys().hasOnly(['uid','activityId','name','choice','at'])
+            && request.resource.data.uid == request.auth.uid
+            && answer == request.resource.data.activityId + '_' + request.auth.uid
+            && request.resource.data.name is string && request.resource.data.name.size() <= 40
+            && request.resource.data.choice in [0,1]
+            && request.resource.data.at == request.time
+            && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/state/activity).data.id == request.resource.data.activityId
+            && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/state/activity).data.open == true;
+        }
+      }
+    }
+  }
+}

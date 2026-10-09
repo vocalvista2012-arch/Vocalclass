@@ -1,2 +1,6 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VocalClass — Classroom</title><style>body{margin:0;background:#080d1c;color:#fff;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh}.box{text-align:center;padding:30px}.logo{font-size:34px;font-weight:900}.logo span{color:#7067ff}.muted{color:#9da7bd}</style></head><body><main class="box"><div class="logo">Vocal<span>Class</span></div><p class="muted">Opening your live classroom…</p></main><script>const p=new URLSearchParams(location.search);const role=p.get('role')==='teacher'?'teacher':'student';const code=(p.get('code')||'').trim();const name=role==='student'?sessionStorage.getItem('vocalclassStudentName')||'Student':'Teacher';if(!/^\d{6}$/.test(code)){document.querySelector('.muted').textContent='Invalid 6-digit classroom code.'}else{location.replace('live-class.html?role='+encodeURIComponent(role)+'&code='+encodeURIComponent(code)+'&name='+encodeURIComponent(name))}</script></body></html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VocalClass — Opening classroom</title></head><body><p>Opening your classroom…</p><noscript>JavaScript is required for the live classroom.</noscript><script>
+const params=new URLSearchParams(location.search);
+params.set('role',params.get('role')==='teacher'?'teacher':'student');
+location.replace('classroom-room.html?'+params.toString());
+</script></body></html>

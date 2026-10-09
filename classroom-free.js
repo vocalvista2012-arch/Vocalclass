@@ -1,0 +1,77 @@
+// Free-plan classroom operations. Firestore rules enforce access; the teacher grades locally.
+import * as core from './quiz-core.js';
+export function createFreeClassroom({db,serverTimestamp,clock}){
+const handlers={},randomUUID=()=>crypto.randomUUID(),badgeID=(code,badge)=>code+'_'+core.BADGES.indexOf(badge);
+class HttpsError extends Error {constructor(code,message){super(message);this.code=code;}}
+const call=fn=>fn;
+const pathID=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
+const data=async path=>(await db.doc(path).get()).data();
+async function context(uid,d,teacher=false){
+ if(!/^\d{6}$/.test(d.code)||!pathID(d.sessionId))throw Error('Invalid classroom.');
+ const root=`liveClassrooms/${d.code}`,base=`${root}/sessions/${d.sessionId}`;
+ const [code,room,session]=await Promise.all([data(`activationCodes/${d.code}`),data(root),data(base)]);
+ if(!code?.active||!room?.active||room.sessionId!==d.sessionId||session?.teacherUid!==code.teacherId)throw Error('This lesson has ended.');
+ let studentName='Student';const isTeacher=code.teacherId===uid;
+ if(teacher&&!isTeacher)throw new HttpsError('permission-denied','Only the teacher can control the classroom.');
+ if(!isTeacher){const p=await db.collection(`${base}/participants`).where('uid','==',uid).get();const access=await data(`${base}/permissions/${uid}`);const participant=p.docs.find(s=>s.data().online&&clock.now()-(s.data().lastSeen?.toMillis?.()||0)<90000);if(access?.removed||!participant)throw new HttpsError('permission-denied','Join the classroom first.');studentName=participant.data().name||'Student';}
+ return {root,base,isTeacher,teacherUid:code.teacherId,studentName};
+}
+handlers.saveQuiz=call(async(uid,d)=>{const quiz=core.validateQuiz(d.quiz);const id=d.id||randomUUID();if(!pathID(id))throw Error('Invalid quiz ID.');await db.doc(`users/${uid}/quizzes/${id}`).set({...quiz,updatedAt:clock.now()});return {id};});
+async function publishScores(root,base){const scores=await db.collection(`${root}/quizScores`).get();const rows=scores.docs.map(s=>s.data()).sort((a,b)=>b.points-a.points||b.correct-a.correct||a.uid.localeCompare(b.uid));const publicRef=db.doc(`${base}/state/leaderboard`);await db.runTransaction(async tx=>{const snap=await tx.get(publicRef);if(snap.data()?.visible)tx.set(publicRef,{visible:true,rows:rows.slice(0,100),updatedAt:clock.now()});});return rows;}
+async function publishBadges(base,visible) {
+ const ref=db.doc(base+'/state/badges'),prior=await data(ref.path);if(visible===undefined&&!prior?.visible)return;
+ const show=visible===undefined?prior.visible:visible,rows=[];
+ if(show){const docs=await db.collection(base+'/participants').get();const seen=new Set();for(const person of docs.docs){const p=person.data();if(p.role!=='student'||seen.has(p.uid))continue;seen.add(p.uid);const earned=await db.collection('users/'+p.uid+'/achievements').where('code','==',base.split('/')[1]).get();for(const badge of earned.docs)rows.push({uid:p.uid,name:p.name||'Student',badge:badge.data().badge});}}
+ await db.runTransaction(async tx=>{const current=await tx.get(ref);if(visible===undefined&&!current.data()?.visible)return;tx.set(ref,{visible:show,rows:rows.slice(0,100)});});
+}
+async function settle(root,base,roundId,skip=false){
+ const quizRef=db.doc(`${base}/state/quiz`),roundRef=db.doc(`${base}/quizRounds/${roundId}`);
+ const q=await db.runTransaction(async tx=>{const [qs,rs]=await Promise.all([tx.get(quizRef),tx.get(roundRef)]);const v=qs.data(),r=rs.data();if(!r||v?.roundId!==roundId||r.graded)return null;if(v.status!=='grading'){tx.update(quizRef,{status:'grading',remainingMs:0});tx.set(roundRef,{skipGrading:skip},{merge:true});}return {...v,...r,skipGrading:r.skipGrading===undefined?skip:r.skipGrading};});
+ if(!q)return;
+ const answers=await db.collection(`${base}/quizRounds/${roundId}/answers`).get();const rows=q.skipGrading?[]:core.rankAnswers(answers.docs.map(x=>{const a=x.data(),at=a.submittedAt.toMillis();return {...a,uid:x.id,submittedAt:at,responseMs:Math.max(0,a.elapsedBefore+at-a.segmentStart)};}),q.correct,q.points);
+ for(const row of rows){const scoreRef=db.doc(`${root}/quizScores/${row.uid}`),mark=db.doc(`${base}/quizRounds/${roundId}/awards/${row.uid}`);await db.runTransaction(async tx=>{const [m,s]=await Promise.all([tx.get(mark),tx.get(scoreRef)]);if(m.exists)return;const score=core.accumulate(s.data(),row);tx.set(scoreRef,score);tx.set(mark,row);for(const badge of core.badgesFor(score,row))tx.set(db.doc(`users/${row.uid}/achievements/${badgeID(root.split('/')[1],badge)}`),{badge,earnedAt:clock.now(),code:root.split('/')[1]},{merge:true});});}
+ const fastest=rows.filter(r=>r.correct).sort((a,b)=>a.rank-b.rank).slice(0,10).map(({uid,name,choice,responseMs,speedPoints,rank})=>({uid,name,choice,responseMs,points:speedPoints,rank}));
+ await db.runTransaction(async tx=>{const snap=await tx.get(quizRef);tx.set(roundRef,{graded:true,skipped:q.skipGrading},{merge:true});if(snap.data()?.roundId===roundId)tx.update(quizRef,{status:q.skipGrading?'skipped':'finished',fastest,showFastest:!q.skipGrading,totalAnswers:rows.length,remainingMs:0});});
+ await publishScores(root,base);await publishBadges(base);
+}
+handlers.submitQuizAnswer=call(async(uid,d)=>{const c=await context(uid,d);if(c.isTeacher)throw Error('Teachers cannot answer their own quiz.');if(!pathID(d.roundId))throw Error('Invalid question.');const ref=db.doc(`${c.base}/quizRounds/${d.roundId}/answers/${uid}`);return db.runTransaction(async tx=>{const [qs,old,profile]=await Promise.all([tx.get(db.doc(`${c.base}/state/quiz`)),tx.get(ref),tx.get(db.doc(`users/${uid}/profiles/student`))]);const q=qs.data();if(!q||q.roundId!==d.roundId)throw Error('The question has changed.');const answer=core.acceptAnswer(q,old.exists?old.data():null,d.choice,clock.now());tx.set(ref,{...answer,submittedAt:serverTimestamp(),segmentStart:q.startedAt,elapsedBefore:q.elapsedMs,uid,name:(profile.data()?.displayName||c.studentName).slice(0,40)});return answer;});});
+async function updateCurrent(ref,roundId,patch){await db.runTransaction(async tx=>{const current=await tx.get(ref);if(current.data()?.roundId!==roundId)throw Error('The quiz changed in another teacher tab. Retry.');tx.update(ref,patch);});}
+handlers.quizAction=call(async(uid,d)=>{
+ const c=await context(uid,d,true),ref=db.doc(`${c.base}/state/quiz`);let q=await data(ref.path);
+ if(d.expectedRoundId!==undefined&&!['leaderboard','bonus','badge','badges'].includes(d.action)&&d.expectedRoundId!==(q?.roundId||null))throw Error('The quiz changed. Wait for the updated question and retry.');
+ if(d.action==='leaderboard'){const rows=await publishScores(c.root,c.base);await db.doc(`${c.base}/state/leaderboard`).set({visible:d.visible===true,rows:d.visible?rows.slice(0,100):[]});return {};}
+ if(d.action==='bonus'||d.action==='badge'){
+  if(!pathID(d.studentUid)||!pathID(d.actionId))throw Error('Select a student.');const members=await db.collection(`${c.base}/participants`).where('uid','==',d.studentUid).get();if(members.empty)throw Error('Student is not in this lesson.');const mark=db.doc(`${c.base}/teacherAwards/${d.actionId}`),scoreRef=db.doc(`${c.root}/quizScores/${d.studentUid}`);
+  await db.runTransaction(async tx=>{const [m,s,p]=await Promise.all([tx.get(mark),tx.get(scoreRef),Promise.resolve({data:()=>({displayName:members.docs[0].data().name})})]);if(m.exists)return;if(d.action==='bonus'){if(!Number.isInteger(d.points)||d.points<1||d.points>1000)throw Error('Bonus must be 1–1000.');tx.set(scoreRef,{uid:d.studentUid,name:p.data()?.displayName||'Student',correct:0,played:0,streak:0,...s.data(),points:(s.data()?.points||0)+d.points});}else{if(!core.BADGES.includes(d.badge))throw Error('Select a badge.');tx.set(db.doc(`users/${d.studentUid}/achievements/${badgeID(d.code,d.badge)}`),{badge:d.badge,earnedAt:clock.now(),code:d.code},{merge:true});}tx.set(mark,{action:d.action,at:clock.now()});});await publishScores(c.root,c.base);await publishBadges(c.base);return {};
+ }
+ if(d.action==='badges'){await publishBadges(c.base,!!d.visible);return {};}
+ if(d.action==='start'||d.action==='next'||d.action==='previous'||d.action==='skip'){
+  if(q&&['running','paused','grading'].includes(q.status))await settle(c.root,c.base,q.roundId,d.action==='skip');
+  let bank;if(d.action==='start'){if(!pathID(d.quizId))throw Error('Select a saved quiz.');bank=await data(`users/${uid}/quizzes/${d.quizId}`);}else bank=await data(`${c.base}/quizRuns/${q?.runId}`);
+  if(!bank)throw Error('Save a quiz first.');const quiz=core.validateQuiz(bank),index=d.action==='start'?0:d.action==='previous'?Math.max(0,q.index-1):q.index+1;
+  if(index>=quiz.questions.length){await updateCurrent(ref,q.roundId,{status:'ended',showFastest:false,showCorrect:false});return {};}
+  const question=quiz.questions[index],runId=d.action==='start'?randomUUID():q.runId,roundId=randomUUID(),now=clock.now();
+  const next={runId,roundId,index,total:quiz.questions.length,title:quiz.title,question:question.question,options:question.options,duration:question.duration,points:question.points,allowChange:question.allowChange,status:'running',startedAt:now,endsAt:now+question.duration*1000,remainingMs:question.duration*1000,elapsedMs:0,revision:randomUUID(),showCorrect:false,showFastest:false,fastest:[]};
+  await db.runTransaction(async tx=>{const latest=await tx.get(ref);if((latest.data()?.roundId||null)!==(q?.roundId||null))throw Error('Another teacher tab changed the quiz. Retry.');if(d.action==='start')tx.set(db.doc(`${c.base}/quizRuns/${runId}`),quiz);tx.set(db.doc(`${c.base}/quizRounds/${roundId}`),{correct:question.correct,explanation:question.explanation,points:question.points,runId,index,graded:false});tx.set(ref,next);});return {};
+ }
+ if(!q)throw Error('Start a quiz first.');
+ if(d.action==='end'){await settle(c.root,c.base,q.roundId);await updateCurrent(ref,q.roundId,{status:'ended',showFastest:false,showCorrect:false});return {};}
+ if(d.action==='reveal'){if(!['finished','skipped','ended'].includes(q.status))throw Error('Wait for the timer to finish.');const secret=await data(`${c.base}/quizRounds/${q.roundId}`);await updateCurrent(ref,q.roundId,{showCorrect:true,correct:secret.correct,explanation:secret.explanation});return {};}
+ if(d.action==='fastest'){if(!['finished','ended'].includes(q.status))throw Error('Wait for the timer to finish.');await updateCurrent(ref,q.roundId,{showFastest:!!d.visible});return {};}
+ if(d.action==='pause'||d.action==='resume'){await db.runTransaction(async tx=>{const snap=await tx.get(ref),v=snap.data(),now=clock.now();if(v?.roundId!==q.roundId)throw Error('The question changed. Retry.');if(d.action==='pause'){if(v.status!=='running'||now>=v.endsAt)throw Error('Question is already closed.');tx.update(ref,{status:'paused',remainingMs:v.endsAt-now,elapsedMs:v.elapsedMs+now-v.startedAt,revision:randomUUID()});}else{if(v.status!=='paused')throw Error('Question is not paused.');tx.update(ref,{status:'running',startedAt:now,endsAt:now+v.remainingMs,revision:randomUUID()});}});return {};}
+ throw Error('Unknown quiz control.');
+});
+handlers.setPermission=call(async(uid,d)=>{const c=await context(uid,d,true);const keys=['microphone','camera','whiteboard','screenShare','removed'];if(!keys.includes(d.permission)||typeof d.value!=='boolean')throw Error('Invalid permission.');const people=await db.collection(`${c.base}/participants`).get();const ids=[...new Set(people.docs.filter(s=>s.data().role==='student'&&(d.studentUid==='all'||s.data().uid===d.studentUid)).map(s=>s.data().uid))];if(!ids.length)throw Error('Select a student.');const batch=db.batch();for(const id of ids)batch.set(db.doc(`${c.base}/permissions/${id}`),{[d.permission]:d.value,updatedAt:clock.now()},{merge:true});if(d.permission==='screenShare'){const state=db.doc(`${c.base}/state/shareOwner`);if(d.value&&ids.length===1)batch.set(state,{uid:ids[0]});else batch.set(state,{uid:null});}await batch.commit();return {};});
+handlers.presentationAction=call(async(uid,d)=>{const c=await context(uid,d,true),p=d.patch||{},ref=db.doc(`${c.base}/state/presentation`);if(Object.keys(p).some(k=>!['path','title','page','pages','zoom','open'].includes(k)))throw Error('Invalid presentation control.');return db.runTransaction(async tx=>{const old=await tx.get(ref),v={...old.data(),...p};if(typeof v.open!=='boolean')throw Error('Invalid presentation state.');if(v.open){if(typeof v.path!=='string'||!v.path.startsWith(`lessons/${d.code}/${d.sessionId}/`)||!/^lessons\/\d{6}\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\.pdf$/.test(v.path))throw Error('Invalid lesson file.');if(typeof v.title!=='string'||v.title.length>150||!Number.isInteger(v.pages)||v.pages<1||v.pages>200||!Number.isInteger(v.page)||v.page<1||v.page>v.pages||typeof v.zoom!=='number'||v.zoom<.5||v.zoom>3)throw Error('Invalid page or zoom.');}tx.set(ref,v);return {};});});
+handlers.saveBoard=call(async(uid,d)=>{const c=await context(uid,d),access=await data(`${c.base}/permissions/${uid}`);if(!c.isTeacher&&!access?.whiteboard)throw new HttpsError('permission-denied','Whiteboard permission is required.');const strokes=d.strokes;if(!Array.isArray(strokes)||strokes.length>180||JSON.stringify(strokes).length>400000)throw Error('This board is full.');for(const s of strokes){if(!['pen','highlighter','eraser','line','rect','circle','arrow','text'].includes(s.tool)||!/^#[0-9a-fA-F]{6}$/.test(s.color)||!Number.isFinite(s.size)||s.size<1||s.size>14||!Array.isArray(s.points)||s.points.length%2!==0||s.points.length<2||s.points.length>600||s.points.some((v,i)=>!Number.isFinite(v)||v<0||v>(i%2?900:1600))||s.text!==undefined&&(typeof s.text!=='string'||s.text.length>200))throw Error('Invalid whiteboard stroke.');}
+ return db.runTransaction(async tx=>{const ref=db.doc(`${c.base}/state/board`),snap=await tx.get(ref),old=snap.data()||{strokes:[],revision:0};if((old.revision||0)!==d.revision)throw Error('The board changed while you were drawing. Please draw that stroke again.');if(!c.isTeacher&&(strokes.length!==old.strokes.length+1||JSON.stringify(strokes.slice(0,-1))!==JSON.stringify(old.strokes)))throw Error('Students may add drawings; only the teacher can change existing drawings.');tx.set(ref,{strokes,revision:(old.revision||0)+1,updatedAt:clock.now()});return {revision:(old.revision||0)+1};});});
+handlers.claimScreen=call(async(uid,d)=>{const c=await context(uid,d);const permission=await data(`${c.base}/permissions/${uid}`);if(!c.isTeacher&&!permission?.screenShare)throw new HttpsError('permission-denied','Screen sharing requires teacher permission.');await db.doc(`${c.base}/state/shareOwner`).set({uid});return {};});
+
+handlers.expireQuiz=call(async(uid,d)=>{
+ const c=await context(uid,d,true),q=await data(c.base+'/state/quiz');
+ if(q?.roundId===d.roundId&&(q.status==='grading'||q.status==='running'&&clock.now()>=q.endsAt))await settle(c.root,c.base,q.roundId);
+ return {};
+});
+return handlers;
+}
+

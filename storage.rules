@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+ match /b/{bucket}/o {
+  match /lessons/{code}/{session}/{file} {
+   function signedIn() { return request.auth != null; }
+   function owner() { return signedIn() && firestore.get(/databases/(default)/documents/activationCodes/$(code)).data.teacherId == request.auth.uid; }
+   // At most two distinct Firestore documents are used by a download check.
+   function canRead() {
+    let room = firestore.get(/databases/(default)/documents/liveClassrooms/$(code)).data;
+    return room.teacherId == request.auth.uid || (room.active == true && room.sessionId == session
+      && (!firestore.exists(/databases/(default)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid))
+        || firestore.get(/databases/(default)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid)).data.get('removed', false) == false));
+   }
+   allow read: if signedIn() && canRead();
+   allow create: if owner() && request.resource.size <= 20 * 1024 * 1024
+     && request.resource.contentType == 'application/pdf' && file.matches('[A-Za-z0-9_-]+[.]pdf');
+   allow delete: if owner();
+  }
+ }
+}
