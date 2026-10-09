@@ -33,5 +33,5 @@ export const dashboardStore = {
     if(!snap.exists()||snap.data().active!==true)throw Error('This code is invalid or disabled. Ask your teacher for an active code.');
     return {...snap.data(),code};
   },
-  disableClass: code=>setDoc(doc(db,'activationCodes',code),{active:false,live:false},{merge:true})
+  disableClass: code=>runTransaction(db,async tx=>{const room=doc(db,'liveClassrooms',code),snap=await tx.get(room);tx.set(doc(db,'activationCodes',code),{active:false,live:false},{merge:true});if(snap.exists())tx.set(room,{active:false},{merge:true});})
 };

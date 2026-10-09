@@ -1,3 +1,6 @@
+import { LiveQuiz } from './classroom-quiz.js';
+import { quizAPI } from './quiz-api.js';
+import { LessonPresentation } from './classroom-presentation.js';
 import { store } from './classroom-store.js';
 import { ClassroomPeer } from './classroom-rtc.js';
 import { ClassroomBoard } from './classroom-board.js';
@@ -10,10 +13,11 @@ const teacher = role === 'teacher';
 const code = (params.get('code') || '').trim();
 const root = `liveClassrooms/${code}`;
 const peers = new Map(), tiles = new Map();
+let liveQuiz=null,presentation=null,permissions={},shareOwner=null;const screenTracks=new Map();
 let user, activation, participantId, sessionId, sessionPath, participantPath;
 let media = {audio:null,camera:null,screen:null}, iceServers=config.iceServers;
 let joined=false, joining=false, stopped=false, busyDevices=false, handUp=false, sharing=false;
-let people=[], activity=null, responses=[], answerKey=null, answered=new Set();
+let people=[];
 let unsubs=[], heartbeat=null, sweep=null, board=null, roomInfo=null, soundBlocked=new Set();
 function report(error) {
   const message = error?.code === 'permission-denied' ? 'Classroom access was denied. Ask your administrator to check the classroom database permissions.' : error?.message || String(error);
@@ -28,6 +32,7 @@ function buttonStates() {
     const enabled=!!liveTrack(key)?.enabled;
     $(id).textContent=label+(enabled?' on':' off'); $(id).setAttribute('aria-pressed',String(enabled));
   }
+  if(joined&&!teacher){$('mic').disabled=permissions[user.uid]?.microphone!==true;$('camera').disabled=permissions[user.uid]?.camera===false;$('share').hidden=permissions[user.uid]?.screenShare!==true;}
   $('selfStatus').textContent=liveTrack('camera')?.enabled?'Camera on':'Camera off';
 }
 async function play(element) {
@@ -93,17 +98,12 @@ function presence() {
 function publishPresence() { return participantPath?store.write(participantPath,presence(),true):Promise.resolve(); }
 function timestampMs(t) {return typeof t==='number'?t:t?.toMillis?.()||((t?.seconds||0)*1000);}
 function currentPeople() {return people.filter(p=>p.online!==false&&(!p.lastSeen||Date.now()-timestampMs(p.lastSeen)<config.staleAfterMs));}
+function initiates(remote){return teacher || (remote.role!=='teacher' && participantId.localeCompare(remote.id)<0);}
 function signalFor(remote) {
-  const guest=teacher?remote.id:participantId;
-  const call=`${sessionPath}/calls/${guest}`;
-  const side=teacher?'teacher':'student', other=teacher?'student':'teacher';
-  const ready=teacher?store.write(call,{teacherUid:user.uid,studentUid:remote.uid},true):Promise.resolve();
-  return {
-    description: async message=>{await ready;return store.write(call,{[side]:message,teacherUid:teacher?user.uid:remote.uid,studentUid:teacher?remote.uid:user.uid},true);},
-    candidate: async message=>{await ready;return store.add(`${call}/${side}Candidates`,message);},
-    watchDescription: (next,error)=>store.watch(call,d=>{if(d?.[other])next(d[other]);},error),
-    watchCandidates: (next,error)=>store.list(`${call}/${other}Candidates`,docs=>docs.forEach(d=>next(d.id,d)),error)
-  };
+ const initiator=initiates(remote),a=initiator?participantId:remote.id,b=initiator?remote.id:participantId;
+ const call=`${sessionPath}/peerCalls/${a}__${b}`,side=initiator?'a':'b',other=initiator?'b':'a';
+ const ready=initiator?store.write(call,{fromId:a,toId:b,fromUid:user.uid,toUid:remote.uid},true):Promise.resolve();
+ return {description:async message=>{await ready;return store.write(call,{[side]:message},true);},candidate:async message=>{await ready;return store.add(`${call}/${side}Candidates`,message);},watchDescription:(next,error)=>store.watch(call,d=>{if(d?.[other])next(d[other]);},error),watchCandidates:(next,error)=>store.list(`${call}/${other}Candidates`,docs=>docs.forEach(d=>next(d.id,d)),error)};
 }
 function tileFor(person) {
   if(tiles.has(person.id)) return tiles.get(person.id);
@@ -112,42 +112,45 @@ function tileFor(person) {
   const audio=document.createElement('audio');audio.autoplay=true;audio.muted=false;
   const label=document.createElement('div');label.className='tile-label';
   const name=document.createElement('span');name.textContent=person.name+(person.role==='teacher'?' · Teacher':'');
-  const state=document.createElement('small');state.textContent='Connecting…';label.append(name,state);card.append(video,audio,label);$('videoGrid').append(card);
+  const state=document.createElement('small');state.textContent='Connecting…';label.append(name,state);card.append(video,audio,label);(person.role==='teacher'?$('teacherVideoDock'):$('videoGrid')).append(card);
   const tile={card,video,audio,state};tiles.set(person.id,tile);return tile;
 }
 function closePeer(id) {
-  peers.get(id)?.close();peers.delete(id);
+  peers.get(id)?.close();peers.delete(id);screenTracks.delete(id);
   const tile=tiles.get(id);if(tile){soundBlocked.delete(tile.audio);tile.audio.srcObject=null;tile.video.srcObject=null;tile.card.remove();tiles.delete(id);}
   $('enableSound').hidden=soundBlocked.size===0;
 }
 function connect(person) {
   if(peers.has(person.id)||stopped) return;
   const tile=tileFor(person);
-  const peer=new ClassroomPeer({initiator:teacher,media,iceServers,signal:signalFor(person),
+  const peer=new ClassroomPeer({initiator:initiates(person),media,iceServers,signal:signalFor(person),
     onTrack:(key,track)=>{
       const stream=new MediaStream([track]);
       if(key==='audio'){tile.audio.srcObject=stream;play(tile.audio);}
       if(key==='camera'){tile.video.srcObject=stream;play(tile.video);}
-      if(key==='screen'&&!teacher){$('sharedScreen').srcObject=stream;play($('sharedScreen'));}
+      if(key==='screen'){screenTracks.set(person.id,track);refreshScreen();}
     },
     onState:state=>{tile.state.textContent=state==='connected'?'Connected':state; if(state==='connected')status('Connected to classroom · '+(teacher?'Teacher':'Student')); if(state==='failed')report('A video connection failed. Try Reconnect; this network may require the classroom relay service.');},
     onError:error=>{tile.state.textContent='Connection issue';report(error);}
   });
   peers.set(person.id,peer);
 }
+let peopleRenderKey="";
 function reconcile() {
   if(!joined||stopped)return;
   const active=currentPeople();
-  const targets=teacher?active.filter(p=>p.role==='student').slice(0,config.maxStudents):active.filter(p=>p.id===roomInfo?.hostId&&p.role==='teacher');
+  const studentsForVideo=active.filter(p=>p.role==='student'&&!permissions[p.uid]?.removed).sort((a,b)=>a.id.localeCompare(b.id)).slice(0,config.maxStudents);
+  const targets=[...active.filter(p=>p.id===roomInfo?.hostId&&p.role==='teacher'),...studentsForVideo].filter(p=>p.id!==participantId);
   for(const id of peers.keys()) if(!targets.some(p=>p.id===id))closePeer(id);
   targets.forEach(connect);
   const students=active.filter(p=>p.role==='student');$('peopleCount').textContent=`${students.length} student${students.length===1?'':'s'}`;
+  const renderKey=JSON.stringify(active.map(p=>[p.id,p.uid,p.name,p.role,p.micOn,p.handUp,...['microphone','camera','whiteboard','screenShare','removed'].map(k=>permissions[p.uid]?.[k])]));
+  if(renderKey!==peopleRenderKey){peopleRenderKey=renderKey;
   $('people').replaceChildren();
-  for(const person of active){const li=document.createElement('li');li.textContent=`${person.name}${person.id===participantId?' (You)':''} · ${person.role} · ${person.micOn?'Mic on':'Muted'}${person.handUp?' · Hand raised':''}`;if(person.handUp)li.className='hand-up';$('people').append(li);}
-  const host=active.find(p=>p.id===roomInfo?.hostId);
-  $('screenEmpty').hidden=!!host?.sharing;
-  if(!teacher && host?.sharing && !sharing){showPane('screen');sharing=true;}
-  if(!teacher && !host?.sharing && sharing){showPane('board');sharing=false;}
+  for(const person of active){const li=document.createElement('li');li.dataset.uid=person.uid;li.textContent=`${person.name}${person.id===participantId?' (You)':''} · ${person.role} · ${person.micOn?'Mic on':'Muted'}${person.handUp?' · Hand raised':''}`;if(person.handUp)li.className='hand-up';if(teacher&&person.role==='student')addPermissionButtons(li,person);$('people').append(li);}
+  liveQuiz?.setPeople(active);}
+  applyRemotePermissions();
+  const host=active.find(p=>p.id===roomInfo?.hostId);refreshScreen();
   $('connectionHint').textContent=teacher?`Students connect directly to you. ${config.maxStudents} video seats supported.`:host?'Teacher video and sound appear here. Your microphone starts muted.':'Waiting for the teacher to connect…';
 }
 async function join() {
@@ -182,23 +185,30 @@ async function join() {
       if(!host?.online||Date.now()-timestampMs(host.lastSeen)>=config.staleAfterMs)throw Error('The teacher is reconnecting. Please try joining again in a moment.');
     }
     participantPath=`${sessionPath}/participants/${participantId}`;
+    if(!teacher){const access=await store.read(`${sessionPath}/permissions/${user.uid}`);if(access?.removed)throw Error('The teacher removed you from this lesson.');permissions[user.uid]=access||{};await acquire('audio',false);if(access?.camera===false)await acquire('camera',false);}
     await store.write(participantPath,{...presence(),joinedAt:store.timestamp()});
     joined=true;stopped=false;
     if(!teacher)store.write(`users/${user.uid}/classHistory/${code}_${sessionId}`,{
       code,sessionId,classroomName:activation.classroomName||'Classroom',teacherId:activation.teacherId,lastJoinedAt:store.timestamp()
     }).catch(()=>report(Error('You joined the classroom, but your class history could not be saved. Check dashboard permissions.')));
     $('lobby').hidden=true;$('classroom').hidden=false;
-    for(const id of ['boardTools','share','activityForm','exportAttendance'])$(id).hidden=!teacher;
+    for(const id of ['boardTools','share','exportAttendance','muteAll'])$(id).hidden=!teacher;
     $('hand').hidden=teacher;$('leave').textContent=teacher?'End class for everyone':'Leave classroom';
     status('Connected to classroom · '+(teacher?'Teacher':'Student'));preview();
-    board=new ClassroomBoard($('board'),{editable:teacher,report,save:async strokes=>{ $('boardStatus').textContent='Saving…';await store.write(`${sessionPath}/state/board`,{strokes,updatedAt:store.timestamp()});$('boardStatus').textContent='Saved to classroom'; }});
-    watch(`${sessionPath}/state/board`,d=>board.receive(d?.strokes||[]));
+    board=new ClassroomBoard($('board'),{editable:teacher,report,pointer:p=>store.write(`${sessionPath}/pointers/${user.uid}`,p).catch(report),save:async strokes=>{ $('boardStatus').textContent='Saving…';const result=await quizAPI.call('saveBoard',{code,sessionId,strokes,revision:board.revision});board.revision=result.revision;$('boardStatus').textContent='Saved to classroom'; }});
+    watch(`${sessionPath}/state/board`,d=>board.receive(d?.strokes||[],d?.revision||0));
     list(`${sessionPath}/participants`,docs=>{people=docs;reconcile();});
     watch(root,d=>{roomInfo=d;if(!d?.active||d.sessionId!==sessionId){finishLocal();report(d?.active?'The teacher restarted the class. Return to the join page to reconnect.':'The teacher ended this class.');status('Class ended');}});
     watch(`activationCodes/${code}`,d=>{if(!d?.active){finishLocal();report('This classroom code was disabled.');status('Class disabled');}});
     list(`${sessionPath}/messages`,renderMessages,'at',100);
-    watch(`${sessionPath}/state/activity`,renderActivity);
-    list(`${sessionPath}/answers`,docs=>{responses=docs;renderResults();});
+    liveQuiz=new LiveQuiz({code,sessionId,uid:user.uid,teacher,report});
+    presentation=new LessonPresentation({code,sessionId,teacher,store,report});
+    if(teacher)$('teacherVideoDock').append(document.querySelector('.video-tile.self'));
+    if(!teacher)watch(`${sessionPath}/permissions/${user.uid}`,p=>{permissions[user.uid]=p||{};enforcePermissions().catch(report);});
+    list(`${sessionPath}/permissions`,rows=>{permissions=Object.fromEntries(rows.map(p=>[p.id,p]));enforcePermissions().catch(report);reconcile();});
+    watch(`${sessionPath}/state/shareOwner`,value=>{shareOwner=value?.uid||null;refreshScreen();if(sharing&&shareOwner!==user.uid)stopSharing().catch(report);});
+    list(`${sessionPath}/pointers`,rows=>{const latest=rows.filter(p=>p.id!==user.uid).sort((a,b)=>b.at-a.at)[0];if(latest){board.remotePointer=latest;board.render();setTimeout(()=>board?.render(),1500);}});
+
     heartbeat=setInterval(()=>publishPresence().catch(report),config.heartbeatMs);
     sweep=setInterval(reconcile,5000);
   }catch(e){
@@ -207,21 +217,24 @@ async function join() {
   }finally{joining=false;$('join').disabled=false;}
 }
 $('join').onclick=safe(join);
-for(const [id,key] of [['mic','audio'],['camera','camera']])$(id).onclick=safe(async()=>{if(stopped)return;await acquire(key,!liveTrack(key)?.enabled);preview();await publishPresence();});
-function showPane(which){$('boardPane').hidden=which!=='board';$('screenPane').hidden=which!=='screen';$('boardTools').hidden=!teacher||which!=='board';$('boardTab').setAttribute('aria-pressed',String(which==='board'));$('screenTab').setAttribute('aria-pressed',String(which==='screen'));board?.render();}
+for(const [id,key] of [['mic','audio'],['camera','camera']])$(id).onclick=safe(async()=>{if(stopped)return;if(!teacher&&((key==='audio'&&permissions[user.uid]?.microphone!==true)||(key==='camera'&&permissions[user.uid]?.camera===false)))return;await acquire(key,!liveTrack(key)?.enabled);preview();await publishPresence();});
+function showPane(which){$('boardPane').hidden=which!=='board';$('screenPane').hidden=which!=='screen';$('boardTools').hidden=(!teacher&&!board?.editable)||which!=='board';$('boardTab').setAttribute('aria-pressed',String(which==='board'));$('screenTab').setAttribute('aria-pressed',String(which==='screen'));board?.render();}
 $('boardTab').onclick=()=>showPane('board');$('screenTab').onclick=()=>showPane('screen');
 async function stopSharing(){
   const track=media.screen;media.screen=null;sharing=false;
   await Promise.all([...peers.values()].map(p=>p.replace('screen',null)));
   if(track){track.onended=null;track.stop();}
-  $('sharedScreen').srcObject=null;$('share').textContent='Share screen / PDF';showPane('board');await publishPresence();
+  $('sharedScreen').srcObject=null;$('share').textContent='Share screen';showPane('board');await publishPresence();
 }
 $('share').onclick=safe(async()=>{
+  if(!teacher&&permissions[user.uid]?.screenShare!==true)throw Error('Ask your teacher for screen-sharing permission.');
   if(sharing)return stopSharing();
   if(!navigator.mediaDevices?.getDisplayMedia)throw Error('Screen sharing is not supported on this browser. Try a desktop browser.');
   let stream;
   try{stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});}catch(e){if(e.name==='NotAllowedError')return;throw e;}
-  const track=stream.getVideoTracks()[0];media.screen=track;sharing=true;
+  const track=stream.getVideoTracks()[0];
+  try{await quizAPI.call('claimScreen',{code,sessionId});}catch(e){track.stop();throw e;}
+  media.screen=track;sharing=true;
   track.onended=safe(stopSharing);
   await Promise.all([...peers.values()].map(p=>p.replace('screen',track)));
   $('sharedScreen').srcObject=new MediaStream([track]);play($('sharedScreen'));$('share').textContent='Stop sharing';showPane('screen');await publishPresence();
@@ -247,47 +260,38 @@ function renderMessages(docs){
   if(nearBottom)area.scrollTop=area.scrollHeight;
 }
 $('chatForm').onsubmit=safe(async e=>{e.preventDefault();const input=$('chatInput'),text=input.value.trim();if(!text||!joined||stopped)return;const button=e.currentTarget.querySelector('button');button.disabled=true;try{await store.add(`${sessionPath}/messages`,{uid:user.uid,name:$('displayName').value.trim().slice(0,40),text:text.slice(0,500),at:store.timestamp()});input.value='';}finally{button.disabled=false;}});
-$('activityType').onchange=()=>{$('correctLabel').hidden=$('activityType').value==='poll';};$('correctLabel').hidden=true;
-$('activityForm').onsubmit=safe(async e=>{
-  e.preventDefault();if(stopped)return;
-  const id=crypto.randomUUID();const next={id,type:$('activityType').value,question:$('question').value.trim(),options:[$('optionA').value.trim(),$('optionB').value.trim()],open:true,startedAt:store.timestamp()};
-  if(!next.question||next.options.some(x=>!x))return;
-  answerKey=next.type==='quiz'?+$('correct').value:null;
-  await store.write(`${sessionPath}/state/activity`,next);$('results').textContent='';
-});
-function renderActivity(data){
-  activity=data;$('activity').replaceChildren();$('closeActivity').hidden=!teacher||!data?.open;
-  if(!data){$('activityStatus').textContent='No activity yet';return;}
-  $('activityStatus').textContent=data.open?'Open for answers':'Closed';
-  const question=document.createElement('p');question.textContent=data.question;$('activity').append(question);
-  data.options.forEach((option,i)=>{const button=document.createElement('button');button.textContent=String.fromCharCode(65+i)+'. '+option;button.disabled=teacher||!data.open||answered.has(data.id);button.onclick=safe(async()=>{
-    $('activity').querySelectorAll('button').forEach(b=>b.disabled=true);
-    try{await store.write(`${sessionPath}/answers/${data.id}_${user.uid}`,{uid:user.uid,activityId:data.id,name:$('displayName').value.trim().slice(0,40),choice:i,at:store.timestamp()});answered.add(data.id);$('activityStatus').textContent='Answer submitted';}
-    catch(e){renderActivity(activity);throw e;}
-  });$('activity').append(button);});renderResults();
+
+function addPermissionButtons(li,person){
+ const controls=document.createElement('div');controls.className='permission-buttons';const access=permissions[person.uid]||{};
+ for(const [key,label,on] of [['microphone',access.microphone?'Mute student':'Allow microphone',!access.microphone],['camera',access.camera===false?'Allow camera':'Disable camera',access.camera===false],['whiteboard',access.whiteboard?'Lock whiteboard':'Allow whiteboard',!access.whiteboard],['screenShare',access.screenShare?'Stop screen share':'Allow screen share',!access.screenShare],['removed','Remove student',true]]){
+  const b=document.createElement('button');b.textContent=label;b.onclick=safe(async()=>{if(key==='removed'&&!confirm('Remove '+person.name+' from this lesson?'))return;b.disabled=true;try{await quizAPI.call('setPermission',{code,sessionId,studentUid:person.uid,permission:key,value:on});}finally{b.disabled=false;}});controls.append(b);
+ }li.append(controls);
 }
-function renderResults(){
-  const area=$('results');area.replaceChildren();if(!activity)return;
-  const rows=responses.filter(r=>r.activityId===activity.id);
-  if(rows.some(r=>r.uid===user.uid)){answered.add(activity.id);if(!teacher)$('activity').querySelectorAll('button').forEach(b=>b.disabled=true);}
-  if(activity.open&&!teacher)return;
-  const counts=activity.options.map((_,i)=>rows.filter(r=>r.choice===i).length);
-  area.textContent=`${rows.length} response${rows.length===1?'':'s'} · A: ${counts[0]} · B: ${counts[1]}`;
-  if(!activity.open&&activity.type==='quiz'&&Number.isInteger(activity.correct)){
-    const result=document.createElement('p');result.textContent='Correct answer: '+activity.options[activity.correct];area.append(result);
-    const correct=rows.filter(r=>r.choice===activity.correct).sort((a,b)=>timestampMs(a.at)-timestampMs(b.at));
-    correct.slice(0,5).forEach((r,i)=>{const line=document.createElement('div');line.textContent=`${i+1}. ${r.name} · Correct`;area.append(line);});
-  }
+$('muteAll').onclick=safe(()=>quizAPI.call('setPermission',{code,sessionId,studentUid:'all',permission:'microphone',value:false}));
+async function enforcePermissions(){
+ if(!joined||teacher)return;const access=permissions[user.uid]||{};
+ if(access.removed){finishLocal();report('The teacher removed you from this lesson.');return;}
+ if(access.microphone!==true)await acquire('audio',false);if(access.camera===false)await acquire('camera',false);
+ if(access.screenShare!==true&&sharing)await stopSharing();if(board)board.editable=access.whiteboard===true;$('boardTools').hidden=!board?.editable;
+ for(const id of ['undo','redo','clearBoard'])$(id).disabled=true;buttonStates();await publishPresence();
 }
-$('closeActivity').onclick=safe(async()=>{if(activity)await store.write(`${sessionPath}/state/activity`,{open:false,...(answerKey!==null?{correct:answerKey}:{})},true);});
+function applyRemotePermissions(){for(const person of people){if(person.role==='teacher')continue;const access=permissions[person.uid]||{},tile=tiles.get(person.id);if(tile){tile.audio.muted=access.microphone!==true;tile.video.style.visibility=access.camera===false?'hidden':'visible';}}}
+function refreshScreen(){
+ const owner=people.find(p=>p.uid===shareOwner&&p.sharing&&!permissions[p.uid]?.removed);
+ const allowed=owner&&(owner.role==='teacher'||permissions[owner.uid]?.screenShare===true);
+ const track=allowed?(owner.id===participantId?media.screen:screenTracks.get(owner.id)):null;
+ if(track&&track.readyState==='live'){if($('sharedScreen').srcObject?.getVideoTracks()[0]!==track){$('sharedScreen').srcObject=new MediaStream([track]);play($('sharedScreen'));showPane('screen');}$('screenEmpty').hidden=true;}
+ else{$('sharedScreen').srcObject=null;$('screenEmpty').hidden=false;if(!$('screenPane').hidden)showPane('board');}
+}
 function csv(value){let text=String(value??'');if(/^[\s]*[=+@-]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';}
 $('exportAttendance').onclick=()=>{const text=[['Name','Role','Joined','Online'],...people.map(p=>[p.name,p.role,new Date(timestampMs(p.joinedAt)).toISOString(),currentPeople().some(x=>x.id===p.id)?'Yes':'No'])].map(row=>row.map(csv).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=`vocalclass-${code}-attendance.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 function finishLocal(){
+  liveQuiz?.destroy();liveQuiz=null;presentation?.destroy();presentation=null;
   stopped=true;joined=false;clearInterval(heartbeat);clearInterval(sweep);
   unsubs.forEach(off=>off());unsubs=[];for(const id of [...peers.keys()])closePeer(id);
   for(const track of Object.values(media))if(track){track.onended=null;track.stop();}
   media={audio:null,camera:null,screen:null};board?.destroy();if(board)board.editable=false;
-  document.querySelectorAll('.controls button, #activityForm button, #chatForm button, #boardTools button').forEach(b=>b.disabled=true);
+  document.querySelectorAll('.controls button, #quizControls button, #chatForm button, #boardTools button').forEach(b=>b.disabled=true);
   $('leave').disabled=false;$('leave').textContent='Return to dashboard';$('enableSound').hidden=true;
 }
 $('leave').onclick=safe(async()=>{

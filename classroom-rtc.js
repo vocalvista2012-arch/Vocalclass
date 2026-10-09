@@ -20,7 +20,7 @@ export class ClassroomPeer {
     for (const [key, kind] of (initiator ? [['audio','audio'], ['camera','video'], ['screen','video']] : [])) {
       const track = media[key] || null;
       const transceiver = this.pc.addTransceiver(track || kind, {
-        direction: key === 'screen' ? (initiator ? 'sendonly' : 'recvonly') : 'sendrecv',
+        direction: 'sendrecv',
         ...(track ? { streams: [new MediaStream([track])] } : {})
       });
       this.senders[key] = transceiver.sender;
@@ -81,9 +81,9 @@ export class ClassroomPeer {
       // unassociated m-lines, making the answer receive-only.
       for (const [index, key] of ['audio','camera','screen'].entries()) {
         const transceiver = this.pc.getTransceivers()[index];
-        transceiver.direction = key === 'screen' ? 'recvonly' : 'sendrecv';
+        transceiver.direction = 'sendrecv';
         this.senders[key] = transceiver.sender;
-        if (key !== 'screen') await transceiver.sender.replaceTrack(this.media[key] || null);
+        await transceiver.sender.replaceTrack(this.media[key] || null);
       }
       await this.pc.setLocalDescription(await this.pc.createAnswer());
       await this.signal.description({ revision: this.revision, type: 'answer', sdp: this.pc.localDescription.sdp });

@@ -13,6 +13,13 @@ service cloud.firestore {
     function activeCode(code) {
       return signedIn() && get(/databases/$(database)/documents/activationCodes/$(code)).data.active == true;
     }
+    // Quiz banks contain private answer keys. Only trusted functions write them.
+    match /users/{uid}/quizzes/{quiz} {
+      allow read, delete: if registeredTeacher() && request.auth.uid == uid;
+    }
+    match /users/{uid}/achievements/{badge} {
+      allow read: if signedIn() && request.auth.uid == uid;
+    }
     match /users/{uid}/profiles/{role} {
       allow get: if signedIn() && request.auth.uid == uid;
       allow create, update: if registeredTeacher() && request.auth.uid == uid
@@ -72,6 +79,9 @@ service cloud.firestore {
       }
     }
     match /liveClassrooms/{code} {
+      match /quizScores/{uid} {
+        allow read: if owner(code);
+      }
       // Allow reading an absent room before the teacher creates it.
       allow get: if activeCode(code) || owner(code);
       allow create, update: if owner(code) && request.resource.data.teacherId == request.auth.uid;
@@ -93,7 +103,9 @@ service cloud.firestore {
         }
         function sessionActive() {
           let room = get(/databases/$(database)/documents/liveClassrooms/$(code)).data;
-          return activeCode(code) && room.active == true && room.sessionId == session;
+          return activeCode(code) && room.active == true && room.sessionId == session
+            && (!exists(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid))
+              || get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(request.auth.uid)).data.get('removed', false) == false);
         }
         function participantOwner(id) {
           return signedIn() && get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/participants/$(id)).data.uid == request.auth.uid;
@@ -112,6 +124,54 @@ service cloud.firestore {
             && request.resource.data.name is string && request.resource.data.name.size() <= 40
             && request.resource.data.lastSeen == request.time
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','online','cameraOn','micOn','handUp','sharing','lastSeen']);
+        }
+        match /permissions/{uid} {
+          allow read: if sessionActive() || sessionOwner() || (signedIn() && uid == request.auth.uid);
+        }
+        match /quizRuns/{run} {
+          allow read: if sessionOwner();
+        }
+        match /quizRounds/{round} {
+          allow read: if sessionOwner();
+          match /answers/{uid} {
+            allow get: if sessionOwner() || (sessionActive() && request.auth.uid == uid);
+            allow list: if sessionOwner();
+          }
+          match /awards/{uid} { allow read: if sessionOwner(); }
+        }
+        match /pointers/{uid} {
+          allow read: if sessionActive() || sessionOwner();
+          allow create, update: if sessionActive() && request.auth.uid == uid
+            && (sessionOwner() || get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/permissions/$(uid)).data.whiteboard == true)
+            && request.resource.data.keys().hasOnly(['points','at'])
+            && request.resource.data.points is list && request.resource.data.points.size() == 2
+            && request.resource.data.points[0] is number && request.resource.data.points[0] >= 0 && request.resource.data.points[0] <= 1600
+            && request.resource.data.points[1] is number && request.resource.data.points[1] >= 0 && request.resource.data.points[1] <= 900
+            && request.resource.data.at is number;
+        }
+        // Pair-scoped mesh signaling: each peer may write only its own description/candidates.
+        match /peerCalls/{pair} {
+          function pairMember() { let p = get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/peerCalls/$(pair)).data; return request.auth.uid == p.fromUid || request.auth.uid == p.toUid; }
+          allow get: if sessionActive() && (!exists(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/peerCalls/$(pair)) || pairMember());
+          allow create: if sessionActive()
+            && request.resource.data.keys().hasOnly(['fromId','toId','fromUid','toUid'])
+            && participantOwner(request.resource.data.fromId)
+            && request.resource.data.fromUid == request.auth.uid
+            && request.resource.data.toUid == get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/participants/$(request.resource.data.toId)).data.uid
+            && pair == request.resource.data.fromId + '__' + request.resource.data.toId;
+          allow update: if sessionActive() && pairMember()
+            && ((request.auth.uid == resource.data.fromUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['a']))
+              || (request.auth.uid == resource.data.toUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['b'])));
+          match /aCandidates/{candidate} {
+            allow read: if sessionActive() && pairMember();
+            allow create: if sessionActive() && request.auth.uid == get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/peerCalls/$(pair)).data.fromUid
+              && request.resource.data.keys().hasOnly(['revision','candidate']);
+          }
+          match /bCandidates/{candidate} {
+            allow read: if sessionActive() && pairMember();
+            allow create: if sessionActive() && request.auth.uid == get(/databases/$(database)/documents/liveClassrooms/$(code)/sessions/$(session)/peerCalls/$(pair)).data.toUid
+              && request.resource.data.keys().hasOnly(['revision','candidate']);
+          }
         }
         // Call ID is the student's participant ID. Each reconnect gets a new ID.
         match /calls/{guest} {

@@ -28,6 +28,7 @@ const auth=`export function onAuthStateChanged(auth,fn){window.switchAccount=fn;
  const errors=[];
  try{
  const context=await browser.newContext({viewport:{width:1440,height:1000}});
+ await context.route('**/quiz-api.js',r=>r.fulfill({contentType:'text/javascript',body:'export const quizAPI={list:(path,next)=>{queueMicrotask(()=>next([]));return()=>{};},call:async()=>({id:"sample"}),removeQuiz:async()=>{}};'}));
  await context.route('**/firebase-config.js',r=>r.fulfill({contentType:'text/javascript',body:'export const auth={app:{}};'}));
  await context.route('https://www.gstatic.com/firebasejs/**/firebase-auth.js',r=>r.fulfill({contentType:'text/javascript',body:auth}));
  await context.route('https://www.gstatic.com/firebasejs/**/firebase-firestore.js',r=>r.fulfill({contentType:'text/javascript',body:sdk}));

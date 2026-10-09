@@ -1,10 +1,6 @@
-import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
-import { getAuth } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
+import { auth } from './firebase-config.js';
 import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc, collection, onSnapshot, query, orderBy, limitToLast, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
-const app = getApps()[0] || initializeApp({
-  apiKey:'AIzaSyD2WCO8qa17uGaA88x31AT-wSOEbEvAOOI',authDomain:'vocalclass-66f4d.firebaseapp.com',projectId:'vocalclass-66f4d',storageBucket:'vocalclass-66f4d.firebasestorage.app',messagingSenderId:'885399749203',appId:'1:885399749203:web:c38cd8d8c53e1c11cbbca6'
-});
-const auth = getAuth(app), db = getFirestore(app);
+const db = getFirestore(auth.app);
 export const store = {
   async authenticate(role) {
     await auth.authStateReady();

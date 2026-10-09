@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),c=require('../functions/quiz-core.cjs');
+const q={title:'Vocal fundamentals',questions:[{question:'Which note follows C?',options:['D','F','G','A'],correct:0,duration:30,points:100,explanation:'The next note is D.',allowChange:false}]};
+assert.equal(c.validateQuiz(q).questions.length,1);
+for(const value of [0,61,-1,1.5,Infinity])assert.throws(()=>c.validateQuiz({...q,questions:[{...q.questions[0],duration:value}]}));
+assert.throws(()=>c.validateQuiz({...q,questions:[{...q.questions[0],options:['a','b']}]}));
+const running={status:'running',startedAt:1000,endsAt:6000,elapsedMs:0,allowChange:false};
+assert.equal(c.acceptAnswer(running,null,1,2210).responseMs,1210);assert.throws(()=>c.acceptAnswer(running,null,1,6000));assert.throws(()=>c.acceptAnswer({...running,status:'paused'},null,1,2000));assert.throws(()=>c.acceptAnswer(running,{choice:1},2,2000));assert.equal(c.acceptAnswer({...running,allowChange:true},{choice:1},2,3000).responseMs,2000);
+assert.equal(c.acceptAnswer({...running,elapsedMs:2000,startedAt:9000,endsAt:12000},null,0,10000).responseMs,3000);
+const rows=Array.from({length:15},(_,i)=>({uid:'u'+String(i).padStart(2,'0'),name:'Student '+i,choice:i===3?2:0,responseMs:1000+i*100,submittedAt:2000+i*100}));const scored=c.rankAnswers(rows,0,100);assert.equal(scored[0].speedPoints,100);assert.equal(scored[1].speedPoints,95);assert.equal(scored[3].speedPoints,0);assert.equal(scored[3].points,5);assert.equal(scored.filter(x=>x.correct).slice(0,10).length,10);
+const score=c.accumulate({correct:4,played:4,points:400,streak:4},scored[0]);assert.equal(score.streak,5);assert.equal(score.points,505);assert(c.badgesFor(score,scored[0]).includes('🔥 5 Correct Answers in a Row'));assert.equal(c.accumulate(score,scored[3]).streak,0);
+console.log('PASS quiz validation, 60-second ceiling, exact deadline rejection, one-answer policy, editable answers, pause-adjusted response times, correct-only speed points, Top 10 ordering, accumulation and badges.');

@@ -1,7 +1,10 @@
+import { QuizLibrary } from './quiz-library.js';
+import { quizAPI } from './quiz-api.js';
 import { dashboardStore as db } from './dashboard-store.js';
 const $=id=>document.getElementById(id);
 const role=document.body.dataset.role==='student'?'student':'teacher';
 const teacher=role==='teacher';
+let quizLibrary=null;
 let user=null,profile=null,history=[],subscriptions=[],epoch=0,draftPhoto='',dirty=false,photoBusy=false;
 const defaults={displayName:'',bio:'',subject:'',accent:'violet',photo:''};
 const accents=['violet','cyan','rose'];
@@ -25,7 +28,7 @@ function showProfile(){
 function section(name){
   document.querySelectorAll('[data-section]').forEach(panel=>{panel.hidden=panel.dataset.section!==name;});
   document.querySelectorAll('[data-tab]').forEach(button=>{button.setAttribute('aria-current',button.dataset.tab===name?'page':'false');});
-  $('pageTitle').textContent=name==='overview'?'Overview':name==='history'?'Class history':'My profile';
+  $('pageTitle').textContent=name==='overview'?'Overview':name==='history'?'Class history':name==='quizzes'?'Create quiz':'My profile';
   if(name==='history')renderHistory();
 }
 document.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>section(button.dataset.tab));
@@ -116,12 +119,14 @@ $('profileForm').onsubmit=async event=>{
   });
 };
 $('signOut').onclick=()=>action($('signOut'),async()=>{await db.signOut();location.replace(role+'-login.html');});
-function teardown(){epoch++;subscriptions.forEach(fn=>fn());subscriptions=[];history=[];profile=null;user=null;dirty=false;draftPhoto='';$('createdCard').hidden=true;$('createdCode').textContent='';$('search').value='';$('filter').value='all';if($('className'))$('className').value='';if($('joinCode'))$('joinCode').value='';$('app').hidden=true;$('loading').hidden=false;$('notice').hidden=true;}
+function teardown(){quizLibrary?.destroy();quizLibrary=null;epoch++;subscriptions.forEach(fn=>fn());subscriptions=[];history=[];profile=null;user=null;dirty=false;draftPhoto='';$('createdCard').hidden=true;$('createdCode').textContent='';$('search').value='';$('filter').value='all';if($('className'))$('className').value='';if($('joinCode'))$('joinCode').value='';$('app').hidden=true;$('loading').hidden=false;$('notice').hidden=true;}
 db.observeAccount(account=>{
   teardown();const mine=epoch;
   if(!account||account.isAnonymous){location.replace(role+'-login.html');return;}
   user=account;profile={...defaults,displayName:account.displayName||account.email?.split('@')[0]||role};showProfile();render();
   $('loading').hidden=true;$('app').hidden=false;
+  if(teacher)quizLibrary=new QuizLibrary($('quizLibrary'),user.uid,fail);
+  const badgeArea=$('ownBadges');badgeArea.replaceChildren();subscriptions.push(quizAPI.list(`users/${user.uid}/achievements`,rows=>{if(mine!==epoch)return;badgeArea.replaceChildren();for(const row of rows){const item=document.createElement('span');item.className='earned-badge';item.textContent=row.badge;badgeArea.append(item);}if(!rows.length)badgeArea.textContent='Your earned badges will appear here.';},e=>{if(mine===epoch)fail(e);}));
   subscriptions.push(db.watchProfile(user.uid,role,data=>{if(mine!==epoch)return;profile={...defaults,...data};showProfile();},e=>{if(mine===epoch)fail(e);}));
   subscriptions.push(db.watchHistory(user.uid,role,rows=>{if(mine!==epoch)return;history=rows;render();},e=>{if(mine===epoch)fail(e);}));
 });
